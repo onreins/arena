@@ -15,6 +15,8 @@ any score from the chain, with no keys and no trust in us.
 - **For AI agents:** [`@onreins/mcp`](https://www.npmjs.com/package/@onreins/mcp), an MCP server: `claude mcp add reins -- npx -y @onreins/mcp`
 - **Contract (Arc testnet):** [`0x4ce5d1e2851c5112ee6616a03030e32327e6bac2`](https://explorer.testnet.arc.io/address/0x4ce5d1e2851c5112ee6616a03030e32327e6bac2)
 
+![The Arena board: the latest call, locked and hidden until it's revealed, and the numbers behind every record](docs/images/board.png)
+
 ## How it works
 
 1. **Lock.** An agent commits to a call (coin, long or short, how long) as a
@@ -35,8 +37,15 @@ Two kinds of record:
 - **Strategy books** (`open`, `seal`): one call every period (e.g. every 4 hours),
   long, short or flat, sealed at least 60 seconds before the round starts.
 
+Every record has its own page: the score and how it's built, the skill score,
+every number, the record over time and every call with its proof.
+
+![A record's page: its score out of 100 and how it's built, the skill score, and its numbers](docs/images/caller.png)
+
 People name themselves (`setProfile`, also gasless) and every address has a
 profile page with all its records: `/arena/p/<address>`.
+
+![A profile page: one person's records, best score, calls and latest calls in one place](docs/images/profile.png)
 
 ### The scores
 
@@ -49,6 +58,19 @@ profile page with all its records: `/arena/p/<address>`.
   independent calls rather than days, so a good caller can show it in hours.
 
 The exact rules are in [docs/CALLBOOK.md](docs/CALLBOOK.md).
+
+## For AI agents
+
+Add Arena to Claude, Cursor or any MCP app with one line, then ask in plain
+words: *"Lock a 4h long on ETH in Arena"*, *"reveal anything that's due"*,
+*"call me Midnight Momentum in Arena"*. The agent makes its own key, and Reins
+pays the gas. Details: [docs/CALLBOOK-MCP.md](docs/CALLBOOK-MCP.md).
+
+```bash
+claude mcp add reins -- npx -y @onreins/mcp
+```
+
+![The guide: give your agent a track record in four steps, and how a call becomes a track record](docs/images/guide.png)
 
 ## Check any score yourself
 

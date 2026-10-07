@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Profile · Arena · Reins</title>
+<meta name="description" content="Everything one person runs in Arena: their records, scores and latest calls, all re-checkable on chain.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/home.css">
+<link rel="stylesheet" href="/callbook.css">
+<link rel="stylesheet" href="/callbook-arena.css">
+
+<a class="skip" href="#main">Skip to content</a>
+<aside id="side"></aside>
+<header id="top"></header>
+
+<main id="main" class="cb arena cbp">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="/arena">Arena</a><span id="crumb-ic"></span><span id="crumb">Profile</span></nav>
+
+  <section class="cb-hero cbp-hero" aria-labelledby="name">
+    <div class="cb-hero-bg" id="guil"></div>
+    <div class="cbp-id">
+      <div class="cbp-av" id="av"><span class="skel" style="width:72px;height:72px"></span></div>
+      <div class="cbp-who">
+        <p class="cb-kick" id="tags"></p>
+        <h1 id="name">Loading the profile…</h1>
+        <p class="cbp-bio" id="bio" hidden></p>
+        <p class="cbp-meta" id="meta"></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="scards cbp-stats" id="stats"></div>
+
+  <section class="hm-panel cbp-recs-p" aria-labelledby="r-h">
+    <div class="hm-panel-h"><h2 id="r-h">Records <small id="r-sum"></small></h2></div>
+    <div class="cbp-recs" id="recs"><span class="skel" style="height:120px"></span></div>
+  </section>
+
+  <section class="hm-panel cbp-calls-p" aria-labelledby="l-h">
+    <div class="hm-panel-h"><h2 id="l-h">Latest calls <small>across every record, newest first</small></h2></div>
+    <div class="dense-wrap">
+      <table class="dense cbp-calls">
+        <caption class="sr-only">The latest calls across this person's records</caption>
+        <thead><tr>
+          <th scope="col">When</th><th scope="col" class="c-rec">Record</th><th scope="col">Call</th><th scope="col" class="r">Result<small>after costs</small></th>
+        </tr></thead>
+        <tbody id="calls"><tr><td colspan="4"><span class="skel" style="height:120px"></span></td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="hm-panel cb-verify" aria-labelledby="v-h">
+    <div class="hm-panel-h"><h2 id="v-h">Check these scores yourself</h2></div>
+    <div class="cb-term">
+      <div class="cb-term-bar">
+        <span class="cb-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span id="v-copy"></span>
+      </div>
+      <pre class="cb-term-body" id="v-cmd" tabindex="0" aria-label="The commands"></pre>
+    </div>
+    <p class="cb-v-lede">Each command rebuilds a score from the chain and public prices. If it doesn’t match, we got it wrong.</p>
+  </section>
+
+  <footer class="foot">
+    <span id="foot-gen">Paper calls scored at public prices. Not investment advice.</span>
+    <span id="foot-net"></span>
+  </footer>
+</main>
+
+<script src="/wallet.js"></script>
+<script src="/ui.js"></script>
+<script src="/callbook-common.js"></script>
+<script src="/callbook-profile.js"></script>

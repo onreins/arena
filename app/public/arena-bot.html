@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Bot · Arena · Reins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/home.css">
+<link rel="stylesheet" href="/callbook.css">
+<link rel="stylesheet" href="/callbook-arena.css">
+
+<a class="skip" href="#main">Skip to content</a>
+<aside id="side"></aside>
+<header id="top"></header>
+
+<main id="main" class="cb arena">
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="/arena">Arena</a><span id="crumb-ic"></span><span id="crumb">Bot</span></nav>
+
+  <section class="cb-hero cbk-hero" data-fx="engraving" aria-labelledby="name">
+    <div class="cb-hero-bg" id="guil"></div>
+    <div class="cbk-id">
+      <p class="cb-kick" id="tags"><span class="skel line" style="width:200px"></span></p>
+      <h1 id="name"><span id="name-t">Loading the book…</span></h1>
+      <p class="cbk-desc" id="desc" hidden></p>
+      <p class="cbk-meta" id="meta"></p>
+      <details class="cb-proof cbk-proof" id="proof-k" hidden><summary>Proof: keys and fingerprints</summary><dl class="cbk-facts" id="facts"></dl></details>
+      <p class="cbk-next" id="next" aria-live="off"></p>
+    </div>
+    <figure class="cbk-val" id="val" aria-label="This bot's score, and how it is built"></figure>
+  </section>
+
+  <div class="scards cbk-stats" id="stats"></div>
+
+  <div class="cbk-row">
+    <section class="hm-panel cbk-chart" aria-labelledby="c-h">
+      <div class="hm-panel-h"><h2 id="c-h">Track record <small>what $1 became, after costs</small></h2><span class="sg-read cbk-read" id="read" aria-live="off"></span></div>
+      <div class="cbk-plot" id="plot" role="img" aria-label="The book's record"><span class="skel" style="height:260px"></span></div>
+      <div class="legend"><span><i style="background:var(--blue)"></i>This bot</span><span><i class="cbk-lim-key"></i>The 5% drop limit, under its best so far</span></div>
+    </section>
+
+    <section class="hm-panel cbk-chal" aria-labelledby="ch-h">
+      <div class="hm-panel-h"><h2 id="ch-h">90-day test <small>Vanta’s rules</small></h2><span id="ch-pill"></span></div>
+      <p class="cbk-why" id="ch-why"></p>
+      <div class="cbk-bars" id="bars"></div>
+    </section>
+  </div>
+
+  <section class="hm-panel cbk-tape" aria-labelledby="t-h">
+    <div class="hm-panel-h"><h2 id="t-h">Every call <small id="t-sum"></small></h2></div>
+    <div class="cbk-key" aria-hidden="true">
+      <span><i class="k-win"></i>Gain</span><span><i class="k-loss"></i>Loss</span><span><i class="k-flat"></i>Flat</span>
+      <span><i class="k-pend"></i>Locked, not yet revealed</span><span><i class="k-miss"></i>Missed</span><span><i class="k-held"></i>Kept hidden</span>
+    </div>
+    <div class="cbk-strip" id="strip" aria-hidden="true"></div>
+    <p class="sr-only" id="strip-sr"></p>
+    <div class="dense-wrap">
+      <table class="dense cbk-calls">
+        <caption class="sr-only">Every call this bot made, newest first</caption>
+        <thead><tr>
+          <th scope="col">Round</th><th scope="col">Locked</th><th scope="col">Call</th>
+          <th scope="col" class="r">Price in → out</th><th scope="col" class="r">Result<small>after costs</small></th><th scope="col" class="r">Proof</th>
+        </tr></thead>
+        <tbody id="calls"><tr><td colspan="6"><span class="skel" style="height:160px"></span></td></tr></tbody>
+      </table>
+    </div>
+    <div class="cbk-more"><button type="button" class="chip" id="more" hidden>Show 50 earlier calls</button></div>
+  </section>
+
+  <section class="hm-panel cbk-report" aria-labelledby="r-h">
+    <details class="cb-proof cbk-rep">
+      <summary><span class="cbk-rep-h"><b id="r-h">Proof</b><small>the fingerprints, links and command to check this score yourself</small></span></summary>
+      <dl class="kv" id="report"></dl>
+    </details>
+  </section>
+
+  <footer class="foot">
+    <span id="foot">Paper calls, scored at Hyperliquid prices after fees and funding. Not investment advice.</span>
+    <span id="foot-net"></span>
+  </footer>
+</main>
+
+<script src="/wallet.js"></script>
+<script src="/ui.js"></script>
+<script src="/callbook-common.js"></script>
+<script src="/callbook-book.js"></script>
+<script src="/fx.js"></script>
+</html>

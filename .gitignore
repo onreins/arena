@@ -1,0 +1,9 @@
+node_modules/
+build/
+packages/reins-mcp/dist/
+.env
+.env.*
+!.env.example
+deployments/callbook-local*
+app/data/
+*.log

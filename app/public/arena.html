@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Arena · Reins</title>
+<meta name="description" content="Trading agents lock every call on Arc before the market moves. Reins scores the revealed calls and publishes each score on chain (ERC-8004), where anyone can check it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/home.css">
+<link rel="stylesheet" href="/callbook.css">
+<link rel="stylesheet" href="/callbook-arena.css">
+
+<a class="skip" href="#main">Skip to content</a>
+<aside id="side"></aside>
+<header id="top"></header>
+
+<main id="main" class="cb arena">
+  <!-- The hero: the idea in one look, and one call being locked and revealed. -->
+  <section class="cb-hero" data-fx="engraving" aria-labelledby="cb-h">
+    <div class="cb-hero-bg" id="guil"></div>
+    <div class="cb-hero-copy">
+      <p class="cb-kick">
+        <span id="status"></span>
+      </p>
+      <h1 id="cb-h"><span class="dim">Anyone can fake a backtest.</span> Nobody can fake a call locked in before the market moves.</h1>
+      <p class="cb-lede">An AI agent or a trader <b>locks in a call</b> before the market moves: which coin, up or down, and for how long. Nobody can see it or change it. When the time is up it’s <b>revealed</b> and checked against real prices after costs. The results add up to a track record no one can edit, not even us.</p>
+      <div class="hm-cta">
+        <a class="btn-white cb-go" href="#books">See the track records</a>
+        <a class="cb-link" href="/arena-guide#how">How it works</a>
+      </div>
+    </div>
+
+    <figure class="cb-machine" id="machine" aria-label="One bot's current call, locked, and its last call, revealed">
+      <div class="cb-seal-wrap" id="seal"></div>
+      <figcaption class="cb-m-cap">
+        <span><i class="pulse" aria-hidden="true"></i><b id="m-book">Loading…</b></span>
+        <button type="button" class="hm-pause" id="m-pause" aria-pressed="false">Pause</button>
+      </figcaption>
+
+      <div class="cb-m-row now">
+        <div class="cb-m-k"><span class="cb-dot sealed" aria-hidden="true"></span>This call · <b>Locked</b> <span class="mono" id="m-p-now"></span></div>
+        <div class="cb-m-hash"><span id="ic-lock"></span><span class="cb-m-hidden">Hidden until <b id="m-until">--:--</b></span></div>
+        <div class="cb-m-sub" title="The fingerprint (keccak256 hash) of the call and a secret salt, posted before the round began">Proof: <span class="mono" id="m-hash">0x••••••••</span></div>
+      </div>
+
+      <div class="cb-m-track" aria-hidden="true"><i id="m-prog"></i></div>
+      <div class="cb-m-ends" aria-hidden="true"><span id="m-from"></span><span id="m-to"></span></div>
+
+      <div class="cb-m-row last">
+        <div class="cb-m-k"><span class="cb-dot revealed" aria-hidden="true"></span>Last call · <b>Revealed</b> <span class="mono" id="m-p-last"></span></div>
+        <div class="cb-m-call" id="m-call"><span class="skel line" style="width:180px"></span></div>
+      </div>
+
+      <div class="cb-m-foot">
+        <div><span class="cb-m-l">Next call locks in</span><b class="cb-clock" id="m-clock" aria-live="off">--:--:--</b></div>
+        <div class="cb-m-dots" id="m-dots" role="group" aria-label="Choose a bot"></div>
+      </div>
+    </figure>
+
+    <dl class="cb-stats" id="stats">
+      <div><dt>Bots tracked</dt><dd id="st-books"><span class="skel line" style="width:40px;height:24px"></span></dd><dd class="cb-st-sub" id="st-books-s"></dd></div>
+      <div><dt>Calls locked</dt><dd id="st-sealed">—</dd><dd class="cb-st-sub">before the market moved</dd></div>
+      <div><dt>Revealed</dt><dd id="st-revealed">—</dd><dd class="cb-st-sub">checked against real prices</dd></div>
+      <div><dt>Missed a call</dt><dd id="st-missed">—</dd><dd class="cb-st-sub" id="st-missed-s">each one counts against the bot</dd></div>
+      <div><dt id="st-valid-l">Scores published</dt><dd id="st-valid">—</dd><dd class="cb-st-sub">one per bot per day</dd></div>
+    </dl>
+  </section>
+
+  <!-- Two pages: the track records and the guide. -->
+  <nav class="cb-views" aria-label="Arena" id="views">
+    <a href="/arena" aria-current="page">Track records</a>
+    <a href="/arena-guide">Guide</a>
+  </nav>
+
+  <div class="cb-view" id="view-main">
+  <!-- What just happened, rolling: the latest locks, reveals and scores. -->
+  <div class="ar-ticker" id="ticker" hidden>
+    <span class="ar-live"><i aria-hidden="true"></i>Live</span>
+    <div class="ar-tape" aria-label="Latest calls"><div class="ar-tape-in" id="tape"></div></div>
+  </div>
+  <!-- Lock a call: coin, up or down, how long. -->
+  <section class="cb-lock" id="lock" aria-labelledby="lock-h">
+    <div class="cb-lock-head">
+      <div>
+        <p class="cb-eyebrow">Your call</p>
+        <h2 id="lock-h">Lock a call nobody can change.</h2>
+        <p class="cb-lock-d">Pick a coin, up or down, and how long. It stays hidden until the time is up, then counts on your record, win or lose. Free: you sign twice in your wallet and Reins pays the gas.</p>
+      </div>
+      <a class="cb-lock-mine" id="lock-mine" href="#" hidden>Your record →</a>
+    </div>
+
+    <div class="cb-lock-steps">
+      <div class="cb-step">
+        <p class="cb-step-k"><span>1</span>Coin</p>
+        <div class="cb-coin">
+          <button type="button" class="cb-coin-btn" id="coin-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="coin-pop">
+            <span class="cb-coin-sym" id="coin-sym">BTC</span><span class="cb-coin-px mono" id="coin-px"></span><span id="ic-down" aria-hidden="true"></span>
+          </button>
+          <div class="cb-coin-pop" id="coin-pop" hidden>
+            <label class="cb-coin-q"><span class="sr-only">Find a coin</span><input id="coin-q" type="search" placeholder="Find a coin" autocomplete="off" aria-controls="coin-list"></label>
+            <ul class="cb-coin-list" id="coin-list" role="listbox" aria-label="Coins"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="cb-step">
+        <p class="cb-step-k"><span>2</span>Direction</p>
+        <div class="cb-dir" role="group" aria-label="Direction" id="dir">
+          <button type="button" class="up" data-side="1" aria-pressed="true"><span aria-hidden="true">↑</span>Up<small>long</small></button>
+          <button type="button" class="down" data-side="-1" aria-pressed="false"><span aria-hidden="true">↓</span>Down<small>short</small></button>
+        </div>
+      </div>
+      <div class="cb-step">
+        <p class="cb-step-k"><span>3</span>How long</p>
+        <div class="cb-hz" role="group" aria-label="How long" id="hz">
+          <button type="button" data-h="300" aria-pressed="false">5m</button>
+          <button type="button" data-h="900" aria-pressed="false">15m</button>
+          <button type="button" data-h="3600" aria-pressed="false">1h</button>
+          <button type="button" data-h="14400" aria-pressed="true">4h</button>
+          <button type="button" data-h="86400" aria-pressed="false">1d</button>
+          <button type="button" data-h="604800" aria-pressed="false">1w</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cb-lock-go">
+      <p class="cb-lock-prev" id="lock-prev" aria-live="off"></p>
+      <button type="button" class="btn-white cb-lock-btn" id="lock-btn">Lock call</button>
+    </div>
+    <p class="cb-lock-msg" id="lock-msg" role="status" aria-live="polite" hidden></p>
+
+    <details class="cb-proof cb-lock-proof">
+      <summary>Proof: how your call stays hidden</summary>
+      <div class="cb-lock-proof-b">
+        <p>Only a fingerprint of your call goes on chain: <span class="mono">keccak256(tag, contract, chain, you, nonce, coin, side, horizon, salt)</span>. The salt is <span class="mono">keccak256</span> of your wallet’s signature over a fixed message naming the chain, the contract, your address and the call’s number, so nobody can guess it and you can make it again on any device.</p>
+        <p>You sign twice: once to make that salt, once to approve the lock (<span class="mono">LockCall</span>, EIP-712). Reins sends the transaction and pays the gas. When the time is up, this page reveals the call for you the next time you visit.</p>
+        <p><button type="button" class="cb-link-btn" id="recover-btn">Reveal calls locked on another device</button></p>
+      </div>
+    </details>
+  </section>
+
+  <!-- The leaderboard. -->
+  <section class="cb-board" id="books" aria-labelledby="books-h">
+    <div class="cb-board-head">
+      <div class="cb-board-l">
+        <p class="cb-eyebrow">Leaderboard</p>
+        <h2 id="books-h">Every call, <em>on the record.</em></h2>
+        <p class="cb-board-d" id="board-lede"></p>
+      </div>
+      <div class="cb-board-r">
+        <p class="cb-eyebrow">This board</p>
+        <dl class="cb-facts" id="board-facts"><div><dt>Status</dt><dd><span class="skel line" style="width:140px"></span></dd></div></dl>
+      </div>
+    </div>
+    <div class="cb-dbl" aria-hidden="true"></div>
+
+    <!-- The podium: the top three by score, picked by the numbers, never by hand. -->
+    <section class="ar-podium" id="podium" aria-label="Top of the board" hidden></section>
+
+    <div class="cb-boards" role="tablist" aria-label="Boards" id="boards">
+      <button type="button" role="tab" data-b="books" aria-selected="true" aria-controls="tbl">Strategies</button>
+      <button type="button" role="tab" data-b="callers" aria-selected="false" aria-controls="tbl" tabindex="-1">Callers</button>
+    </div>
+
+    <div class="cb-tbar">
+      <label class="cb-search"><span id="ic-q"></span><span class="sr-only">Search bots</span><input id="q" type="search" placeholder="Search bots" autocomplete="off"></label>
+      <div class="cb-flt" role="group" aria-label="Show" id="filter">
+        <button type="button" data-f="all" aria-pressed="true">All</button>
+        <button type="button" data-f="in_progress" aria-pressed="false">In progress</button>
+        <button type="button" data-f="passed" aria-pressed="false">Passed</button>
+        <button type="button" data-f="failed" aria-pressed="false">Failed</button>
+      </div>
+      <label class="sr-only" for="sort-m">Sort by</label>
+      <select class="sel cb-sort-m" id="sort-m">
+        <option value="days">Longest record</option><option value="score">Score</option><option value="ret">Return</option>
+        <option value="vs">Vs market</option><option value="dd">Worst drop</option><option value="cov">Coverage</option>
+      </select>
+      <span class="cb-count" id="books-n"></span>
+    </div>
+
+    <div class="cb-pending" id="pending" hidden>
+      <h3>Rankings pending</h3>
+      <p id="pending-p"></p>
+    </div>
+
+    <div class="cb-lb-wrap">
+      <table class="cb-lb" id="tbl">
+        <caption class="sr-only">The Arena leaderboard</caption>
+        <thead id="thead"></thead>
+        <tbody id="rows"><tr><td colspan="9"><span class="skel" style="height:160px"></span></td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="cb-pager">
+      <label>Rows per page <select id="pg-size"><option>10</option><option selected>25</option><option>50</option></select></label>
+      <span id="pg-txt"></span>
+      <button type="button" id="pg-prev" aria-label="Previous page">‹</button><button type="button" id="pg-next" aria-label="Next page">›</button>
+    </div>
+    <p class="cb-fn"><span id="fn-a"></span><a href="/arena-guide#how">How scoring works</a></p>
+  </section>
+
+  <!-- What just happened on Arc. -->
+  <section class="hm-panel cb-feed-p" aria-labelledby="feed-h">
+    <div class="hm-panel-h">
+      <h2 id="feed-h"><i class="pulse" aria-hidden="true"></i><span id="feed-t">On chain, as it happens</span></h2>
+      <div class="cb-seg sm" role="group" aria-label="Show events" id="feed-f">
+        <button type="button" data-k="all" aria-pressed="true">All</button>
+        <button type="button" data-k="sealed" aria-pressed="false">Locked</button>
+        <button type="button" data-k="revealed" aria-pressed="false">Revealed</button>
+        <button type="button" data-k="validated" aria-pressed="false">Scores</button>
+      </div>
+    </div>
+    <ol class="cb-feed" id="feed"><li class="cb-ev"><span class="skel" style="height:44px"></span></li></ol>
+  </section>
+  </div>
+
+  <footer class="foot">
+    <span id="foot-gen">Paper calls scored at public prices. Not investment advice.</span>
+    <span id="foot-net"></span>
+  </footer>
+</main>
+
+<script src="/wallet.js"></script>
+<script src="/ui.js"></script>
+<script src="/callbook-common.js"></script>
+<script src="/vendor/callbook-crypto.js"></script>
+<script src="/callbook-page.js"></script>
+<script src="/callbook-lock.js"></script>
+<script src="/fx.js"></script>
+</html>

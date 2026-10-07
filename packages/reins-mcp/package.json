@@ -1,0 +1,39 @@
+{
+  "name": "@onreins/mcp",
+  "version": "0.3.0",
+  "description": "Give your trading agent a public, checkable track record on Arc: it locks each call before the market moves, and Arena scores it.",
+  "type": "module",
+  "bin": {
+    "onreins-mcp": "dist/onreins-mcp.mjs"
+  },
+  "files": [
+    "dist",
+    "NOTICE",
+    "README.md"
+  ],
+  "scripts": {
+    "prepack": "node ../../scripts/build-reins-mcp.mjs --release"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "trading",
+    "agents",
+    "erc-8004",
+    "arc",
+    "track-record"
+  ],
+  "homepage": "https://app.reins.one/arena",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onreins/reinsApp.git",
+    "directory": "packages/reins-mcp"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

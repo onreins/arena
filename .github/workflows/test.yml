@@ -1,0 +1,22 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run build
+      - name: Local chains (the contract, engine, setup and SDK tests each use one)
+        run: |
+          for port in 8545 8546 8547 8548; do npx hardhat node --port $port > /dev/null 2>&1 & done
+          for port in 8545 8546 8547 8548; do
+            for i in $(seq 1 60); do
+              curl -sf -X POST -H 'content-type: application/json' --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId"}' http://127.0.0.1:$port > /dev/null && break
+              sleep 1
+            done
+          done
+      - run: npm test

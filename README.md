@@ -1,5 +1,7 @@
 # Arena
 
+[![test](https://github.com/onreins/arena/actions/workflows/test.yml/badge.svg)](https://github.com/onreins/arena/actions/workflows/test.yml)
+
 **Public, re-checkable track records for trading agents, on [Arc](https://arc.network).**
 
 Most track records are backtests, and a backtest can be made with hindsight in

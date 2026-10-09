@@ -136,11 +136,6 @@
   .cb-hero h1, .hm-hero h1 { font-size: 32px !important; line-height: 1.08 !important; letter-spacing: -.03em; }
   .cb-hero p, .hm-hero p { font-size: 15px; line-height: 1.55; }
   .page-head h1 { font-size: 30px; line-height: 1.15; }
-  /* The hero's stat strip: was bled to the old box's edges; now a box of its own. */
-  .cb-hero .cb-stats {
-    margin: 4px 0 0 !important; padding: 16px !important; border: 0; border-radius: 16px;
-    background: rgba(255, 255, 255, .03); box-shadow: inset 0 0 0 1px var(--line-2);
-  }
 
   /* Panels and cards: one radius, one inset line, roomy padding. */
   .hm-panel, .cbp-rec, .cbl-card { border-radius: 16px; }
@@ -148,7 +143,7 @@
 
   /* ---------------------------------------------------------------- the Arena board */
   /* Every row a card: name, tags and its record on top, a line, then three stat
-     boxes (score, skill, return or calls) and its coverage along the foot. */
+     boxes (score, predictions, return after fees), then worst drop and days active. */
   .cb-lb-wrap { overflow: visible; border: 0; box-shadow: none; background: none; }
   .cb-lb, .cb-lb tbody { display: block; width: 100%; }
   .cb-lb thead { display: none; }
@@ -190,8 +185,7 @@
   .cb-lb tr.row td.c-rank.first { background: rgba(230, 176, 98, .16); color: var(--amber); }
 
   /* The three stat boxes. */
-  .cb-lb tr.row td[data-k="score"], .cb-lb tr.row td[data-k="skill"],
-  .cb-lb tr.row td[data-k="ret"], .cb-lb tr.row td[data-k="calls"] {
+  .cb-lb tr.row td[data-k="score"], .cb-lb tr.row td[data-k="calls"], .cb-lb tr.row td[data-k="ret"] {
     display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 8px;
     min-width: 0; min-height: 84px; padding: 11px 12px; border-radius: 14px;
     background: rgba(255, 255, 255, .035); box-shadow: inset 0 0 0 1px var(--line);
@@ -202,20 +196,21 @@
     box-shadow: inset 0 0 0 1px rgba(139, 124, 246, .28);
   }
   .cb-lb tr.row td[data-k] > * { max-width: 100%; text-align: left; }
-  .cb-lb tr.row td[data-k="score"] .ar-score, .cb-lb tr.row td[data-k="skill"] > * { align-items: flex-start; justify-items: start; }
+  .cb-lb tr.row td[data-k]::before { white-space: normal; }
+  .cb-lb tr.row td[data-k="score"] .ar-score { align-items: flex-start; justify-items: start; }
+  .cb-lb tr.row td[data-k="calls"] .muted { display: block; font-size: 11.5px; font-weight: 400; }
   .cb-lb tr.row td[data-k="score"] .ar-score b { font: 700 24px/1 var(--sans); letter-spacing: -.02em; }
-  .cb-lb tr.row td[data-k="skill"] .cb-skill-n { font-size: 15px; }
 
-  /* Coverage along the foot. */
-  .cb-lb tr.row td[data-k="cov"] {
+  /* Worst drop and days active along the foot. */
+  .cb-lb tr.row td[data-k="dd"], .cb-lb tr.row td[data-k="days"] {
     grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 6px;
     padding-top: 6px; font-size: 13px;
   }
-  .cb-lb tr.row td[data-k="cov"]::before { margin-right: auto; }
+  .cb-lb tr.row td[data-k="dd"]::before, .cb-lb tr.row td[data-k="days"]::before { margin-right: auto; }
+  .cb-lb tr.row td[data-k="days"] { padding-top: 0; }
 
-  /* Long cards help nobody: the finer columns stay on the bot's own page. */
-  .cb-lb tr.row td[data-k="vs"], .cb-lb tr.row td[data-k="dd"], .cb-lb tr.row td[data-k="test"],
-  .cb-lb tr.row td[data-k="worst"], .cb-lb tr.row td[data-k="days"], .cb-lb tr.row td[data-k="hit"] { display: none; }
+  /* Long cards help nobody: the finer columns stay on the agent's own page. */
+  .cb-lb tr.row td[data-k="test"] { display: none; }
 
   /* ---------------------------------------------------------------- stat boxes */
   /* Two to a row, the number large, a soft light in the corner. */

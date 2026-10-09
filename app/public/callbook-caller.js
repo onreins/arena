@@ -7,7 +7,7 @@
   var $ = function (id) { return document.getElementById(id); };
   U.topbar("callbook");
   C.tooltips();
-  $("crumb-ic").innerHTML = U.icon("right");
+  $("crumb-ic").innerHTML = $("crumb-ic-2").innerHTML = U.icon("right");
   $("guil").innerHTML = C.guilloche(1200, 420, 0.87);
 
   // The caller score's published constants (app/verify/callbook-callers.js, CALLER_RULES).
@@ -27,34 +27,34 @@
 
   // ------------------------------------------------------------- header
   function header(x) {
-    document.title = C.nameOf(x) + " · Arena · Reins";
+    document.title = C.nameOf(x) + " · Arena by Reins";
     $("crumb").textContent = C.nameOf(x);
     $("name").innerHTML = '<span id="name-t">' + esc(C.nameOf(x)) + "</span>";
     $("tags").innerHTML = (x.ours ? '<span class="cb-tag" tabindex="0" data-tip="Run by Reins, scored by the same rules as everyone">Reins</span>' : "") +
-      (x.sample ? '<span class="cb-tag" tabindex="0" data-tip="A sample caller in the replay, to show how the board works">Sample</span>' : "") +
-      (isBaseline(x) ? '<span class="cb-tag" tabindex="0" data-tip="A control with no edge by design: it shows what luck alone looks like under these rules">Baseline</span>' : "") +
+      (x.sample ? '<span class="cb-tag" tabindex="0" data-tip="A sample record in the replay, to show how the leaderboard works">Sample</span>' : "") +
+      (isBaseline(x) ? '<span class="cb-tag" tabindex="0" data-tip="A control with no edge by design: random picks. It pays fees and funding like any position, so it drifts below zero — the bar every agent has to beat">Baseline</span>' : "") +
       C.movedTag(x) + C.statusPill(x);
     $("desc").textContent = x.description || "";
     $("desc").hidden = !x.description;
     var m = x.metrics;
-    $("meta").innerHTML = "Calls <b>any coin</b>, held <b>" + esc(hold(x.minHorizon)) + "</b> to <b>" + esc(hold(x.maxHorizon)) + "</b> · first call " + esc(C.stamp(x.openedAt, true)) +
+    $("meta").innerHTML = "Predicts <b>any coin</b>, held <b>" + esc(hold(x.minHorizon)) + "</b> to <b>" + esc(hold(x.maxHorizon)) + "</b> · started " + esc(C.stamp(x.openedAt, true)) +
       (x.lastCallAt ? " · latest " + esc(C.ago(x.lastCallAt)) : "") + C.moreFrom(x);
     var fact = function (k, v, tip) { return "<div><dt" + (tip ? ' data-tip="' + esc(tip) + '" tabindex="0"' : "") + ">" + esc(k) + "</dt><dd>" + v + "</dd></div>"; };
     $("facts").innerHTML =
-      fact("Book", '<span class="mono">#' + esc(x.id) + "</span>", "Its open-call book on the Arena contract") +
+      fact("Record", '<span class="mono">#' + esc(x.id) + "</span>", "Its record on the Arena contract") +
       fact("ERC-8004 agent", C.isNum(x.agentId) ? '<span class="mono">#' + esc(x.agentId) + "</span>" : '<span class="muted">not linked</span>') +
       fact("Owner", C.txLink(EXP, x.owner, U.short(x.owner), "address")) +
-      fact("Caller key", C.txLink(EXP, x.caller, U.short(x.caller), "address"), "The key that signs its calls");
+      fact("Signing key", C.txLink(EXP, x.caller, U.short(x.caller), "address"), "The key that signs its predictions");
     $("proof-k").hidden = false;
-    if (m.calls === 0) $("meta").innerHTML += " · no calls yet";
+    if (m.calls === 0) $("meta").innerHTML += " · no predictions yet";
   }
 
   // ------------------------------------------------------------- the score
   function scoreWhy(x) {
     var p = x.score && x.score.parts, m = x.metrics, next = [];
     if (!p) return "";
-    if (!(p.profit > 0)) next.push("calls that make money after costs");
-    if (p.edge <= 0) next.push("calls that beat each coin’s own move");
+    if (!(p.profit > 0)) next.push("predictions that make money after costs");
+    if (p.edge <= 0) next.push("predictions that beat each coin’s own move");
     if (C.isNum(m.maxDrawdown) && m.maxDrawdown >= R.maxDrawdown) next.push("a drawdown back under 40%");
     return next.length ? "To rise it needs " + next.join(", ").replace(/, ([^,]*)$/, " and $1") + "." : "";
   }
@@ -62,7 +62,7 @@
     var v = x.validation, sc = C.scoreOf(x);
     if (!C.isNum(sc)) {
       $("val").innerHTML = '<div class="cbk-stampcol"><div class="cbk-stampw">' + C.seal("cbk-stamp idle", "ARENA · ERC-8004 · AWAITING SCORE · ") +
-        "</div><figcaption><b>Not scored yet</b><span>The first score comes after its first revealed call.</span></figcaption></div>" + C.skillPanel(x.skill);
+        "</div><figcaption><b>Not scored yet</b><span>The first score comes after its first revealed prediction.</span></figcaption></div>" + C.skillPanel(x.skill);
       return;
     }
     var s = Math.max(0, Math.min(100, sc)), r = 30, c = 2 * Math.PI * r, p = x.score && x.score.parts, m = x.metrics;
@@ -73,8 +73,8 @@
       '<svg class="cbk-arc" viewBox="0 0 100 100" aria-hidden="true"><circle class="t" cx="50" cy="50" r="' + r + '"/>' +
       '<circle class="v" cx="50" cy="50" r="' + r + '" stroke-dasharray="' + (s / 100 * c).toFixed(2) + " " + c.toFixed(2) + '"/></svg>' +
       '<div class="cbk-score"><b>' + esc(Math.round(s)) + "</b><span>/100</span></div></div>" +
-      "<figcaption><b>" + (s === 0 && short ? "Score 0 · " + esc(short) : "Caller score, out of 100") + "</b><span>" +
-      (v ? "Published to ERC-8004 <span class=\"nb\">" + esc(C.ago(v.at)) + "</span>" : "Updated after every reveal") + "</span></figcaption></div>" +
+      "<figcaption><b>" + (s === 0 && short ? "Score 0 · " + esc(short) : "Score, out of 100") + "</b><span>" +
+      (v ? "Published on Arc (ERC-8004) <span class=\"nb\">" + esc(C.ago(v.at)) + "</span>" : "Updated after every reveal") + "</span></figcaption></div>" +
       C.scoreParts(x, "the coin", why) + C.skillPanel(x.skill);
   }
 
@@ -85,25 +85,25 @@
       return '<div class="scard"><div class="lbl"' + (tip ? ' data-tip="' + esc(tip) + '" tabindex="0"' : "") + ">" + esc(lbl) + (tip ? U.icon("info") : "") + '</div><div class="val">' + val + '</div><div class="sub2">' + sub + "</div></div>";
     };
     var call = function (b) {
-      return b ? esc(b.coin || "?") + " " + (b.side > 0 ? "up" : b.side < 0 ? "down" : "") + (b.status === "withheld" ? " · kept hidden" : "") : "no calls yet";
+      return b ? esc(b.coin || "?") + " " + (b.side > 0 ? "up" : b.side < 0 ? "down" : "") + (b.status === "withheld" ? " · kept hidden" : "") : "no predictions yet";
     };
     $("stats").innerHTML =
-      card("Calls", C.int(m.calls), (m.pending ? esc(C.int(m.pending)) + " still locked · " : "") + esc(C.int(m.revealed)) + " revealed") +
-      card("Hit rate", C.isNum(m.hitRate) ? Math.round(m.hitRate * 100) + "%" : "—", "of its calls made money after costs") +
-      card("Vs the coin", C.pctHtml(m.vsCoin, 2), (!C.isNum(m.vsCoin) ? "no revealed calls yet" : "per call, " + (m.vsCoin >= 0 ? "ahead of" : "behind") + " the coin’s own move"), "Average per call, after costs, less the coin's own move over the same hours") +
-      card("Average call", C.pctHtml(m.meanReturn, 2), "after fees and funding") +
-      card("Best call", C.pctHtml(m.best && m.best.ret, 1), call(m.best)) +
-      card("Worst call", C.pctHtml(m.worst && m.worst.ret, 1), call(m.worst)) +
-      card("Average hold", C.isNum(m.avgHorizonHours) ? hold(m.avgHorizonHours * 3600) : "—", "how long its calls last") +
+      card("Predictions", C.int(m.calls), (m.pending ? esc(C.int(m.pending)) + " not yet revealed · " : "") + esc(C.int(m.revealed)) + " revealed") +
+      card("Hit rate", C.isNum(m.hitRate) ? Math.round(m.hitRate * 100) + "%" : "—", "of its predictions made money after costs") +
+      card("Vs the coin", C.pctHtml(m.vsCoin, 2), (!C.isNum(m.vsCoin) ? "no revealed predictions yet" : "per prediction, " + (m.vsCoin >= 0 ? "ahead of" : "behind") + " the coin’s own move"), "Average per prediction, after costs, less the coin's own move over the same hours") +
+      card("Average prediction", C.pctHtml(m.meanReturn, 2), "after fees and funding") +
+      card("Best prediction", C.pctHtml(m.best && m.best.ret, 1), call(m.best)) +
+      card("Worst prediction", C.pctHtml(m.worst && m.worst.ret, 1), call(m.worst)) +
+      card("Average hold", C.isNum(m.avgHorizonHours) ? hold(m.avgHorizonHours * 3600) : "—", "how long its predictions are held") +
       card("Coverage", C.isNum(m.coverage) ? Math.round(m.coverage * 100) + "%" : "—",
-        (m.withheld || m.unscorable ? esc(C.int(m.withheld)) + " kept hidden · " + esc(C.int(m.unscorable || 0)) + " unpriced" : "every call due was revealed"),
-        "Calls revealed, out of calls that were due. A call kept hidden counts as its worst result.");
+        (m.withheld || m.unscorable ? esc(C.int(m.withheld)) + " kept hidden · " + esc(C.int(m.unscorable || 0)) + " unpriced" : "every prediction due was revealed"),
+        "Predictions revealed, out of those due. One kept hidden counts as its worst result.");
   }
 
   // ------------------------------------------------------------- record
   function chart(x) {
     var a = (x.curve || []).filter(function (p) { return C.isNum(p.v); });
-    if (a.length < 2) { $("plot").innerHTML = '<div class="plot-empty">The record starts with the first revealed call.</div>'; return; }
+    if (a.length < 2) { $("plot").innerHTML = '<div class="plot-empty">The record starts with the first revealed prediction.</div>'; return; }
     var box = $("plot"), W = Math.max(280, Math.round(box.clientWidth || 680)), H = Math.max(220, Math.round(box.clientHeight || 260)), P = { l: 6, r: 52, t: 12, b: 24 };
     var vals = a.map(function (p) { return p.v; }).concat([1]);
     var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), pad = (hi - lo) * 0.08 || 0.01;
@@ -130,7 +130,7 @@
 
   // ------------------------------------------------------------- the calls
   function kindOf(c) {
-    if (c.status === "pending") return ["pend", /^revealed/.test(c.note || "") ? "revealed, reading its stop and target" : "locked, not yet revealed"];
+    if (c.status === "pending") return ["pend", /^revealed/.test(c.note || "") ? "revealed, reading its stop and target" : "recorded, not yet revealed"];
     if (c.status === "withheld" || c.status === "unscorable") return ["held", (c.status === "withheld" ? "kept hidden" : "unpriced") + ", counted as its worst: " + C.pct(c.ret, 2)];
     return [c.ret > 0 ? "win" : c.ret < 0 ? "loss" : "flat", (c.coin || "") + " " + (c.side > 0 ? "up" : "down") + " " + C.pct(c.ret, 2)];
   }
@@ -143,7 +143,7 @@
   }
   var fmtPx = function (v) { return !C.isNum(v) ? "—" : v.toLocaleString("en-US", { maximumFractionDigits: v >= 1000 ? 1 : v >= 1 ? 3 : 5, minimumFractionDigits: v >= 1000 ? 1 : 2 }); };
   function proof(c) {
-    var a = c.hash ? '<span title="Fingerprint locked before the call began: ' + esc(c.hash) + '">' + C.txLink(EXP, c.lockTx, C.shortHash(c.hash, 6, 4)) + "</span>" : "";
+    var a = c.hash ? '<span title="Fingerprint recorded before it began: ' + esc(c.hash) + '">' + C.txLink(EXP, c.lockTx, C.shortHash(c.hash, 6, 4)) + "</span>" : "";
     var r = c.revealTx ? "<small>revealed " + C.txLink(EXP, c.revealTx, C.shortHash(c.revealTx, 4, 4)) + "</small>" : "";
     return a || r ? a + r : '<span class="muted">—</span>';
   }
@@ -151,7 +151,7 @@
   var EXIT_WORD = { stop: "stopped out", target: "hit its target", time: "ran its full time" };
   function callRow(c) {
     var id = ' id="c-' + esc(c.callId) + '"';
-    var when = '<td class="c-round"><b>' + esc(C.stamp(c.lockedAt).replace(" UTC", "")) + "</b><small>call #" + esc(C.int(c.callId)) + "</small></td>";
+    var when = '<td class="c-round"><b>' + esc(C.stamp(c.lockedAt).replace(" UTC", "")) + "</b><small>#" + esc(C.int(c.callId)) + "</small></td>";
     var pr = '<td class="r c-proof">' + proof(c) + "</td>";
     if (c.status === "pending") {
       var own = mine(c), note;
@@ -161,10 +161,10 @@
         note = '<span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>Revealed · reading its stop and target</span>';
       } else if (due) {
         var at = due;
-        note = '<span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>' + (own ? "Your call" : "Locked") + " · reveals " + esc(C.stamp(at).replace(" UTC", "")) +
+        note = '<span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>' + (own ? "Your prediction" : "Recorded") + " · revealed " + esc(C.stamp(at).replace(" UTC", "")) +
           ' UTC, in <b class="mono" data-until="' + esc(at) + '">' + esc(C.span(at - C.now())) + "</b></span>";
       } else {
-        note = '<span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>Locked · hidden until it’s revealed</span>' +
+        note = '<span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>Recorded · hidden until it’s revealed</span>' +
           (c.withheldAfter ? '<small>counts as its worst result if still hidden on ' + esc(C.stamp(c.withheldAfter).replace(" UTC", "")) + "</small>" : "");
       }
       return '<tr class="pend"' + id + ">" + when + '<td class="c-note" colspan="4">' + note + "</td>" + pr + "</tr>";
@@ -189,15 +189,15 @@
   function rows(n) {
     shown = Math.min(order.length, Math.max(n, shown));
     $("calls").innerHTML = order.length ? order.slice(0, shown).map(callRow).join("") :
-      '<tr><td class="empty" colspan="6"><b>No calls yet</b>Calls show here as soon as they’re locked, and their results when they’re revealed.</td></tr>';
+      '<tr><td class="empty" colspan="6"><b>No predictions yet</b>Predictions show here as soon as they’re recorded, and their results when they’re revealed.</td></tr>';
     $("more").hidden = shown >= order.length;
-    $("more").textContent = "Show " + Math.min(PAGE, order.length - shown) + " earlier calls";
+    $("more").textContent = "Show " + Math.min(PAGE, order.length - shown) + " earlier predictions";
   }
   function tape(x) {
     var calls = (x.calls || []).slice().sort(function (a, b) { return a.callId - b.callId; });
     order = calls.slice().reverse();
     var n = function (s) { return calls.filter(function (c) { return c.status === s; }).length; };
-    $("t-sum").textContent = C.int(calls.length) + " calls · " + C.int(n("revealed")) + " revealed" + (n("pending") ? " · " + n("pending") + " still locked" : "") +
+    $("t-sum").textContent = C.int(calls.length) + " predictions · " + C.int(n("revealed")) + " revealed" + (n("pending") ? " · " + n("pending") + " not yet revealed" : "") +
       (n("withheld") ? " · " + n("withheld") + " kept hidden" : "") + (n("unscorable") ? " · " + n("unscorable") + " unpriced" : "");
     strip(calls);
     rows(30);
@@ -220,10 +220,10 @@
     $("report").innerHTML =
       row("Report hash", r.hash ? '<span class="cb-hash">' + esc(C.shortHash(r.hash, 12, 8)) + "</span>" + C.copyButton(r.hash, "Copy the report hash") : '<span class="muted">—</span>') +
       (r.uri ? row("Report URI", C.isHttp(r.uri) ? '<a class="cb-hash" href="' + esc(r.uri) + '" target="_blank" rel="noopener">' + esc(r.uri) + U.icon("ext") + "</a>" : '<span class="cb-hash cbk-uri">' + esc(r.uri) + "</span>") : "") +
-      (v ? row("Posted to ERC-8004", '<span class="cb-hash">' + esc(C.shortHash(v.responseHash, 12, 8)) + "</span><small>score " + esc(v.score) + " · " + esc(C.stamp(v.at)) + "</small>") : "") +
-      row("Prices", "Hyperliquid candle opens: 5-minute candles for calls under an hour, hourly for longer<small>entry at the first open at or after the entry time, exit at the first open at or after entry + horizon, less fees and funding</small>") +
-      (r.reference ? row("Reference coins", esc(Array.isArray(r.reference) ? r.reference.join(", ") : String(r.reference)) + "<small>for a call that can’t be priced</small>") : "") +
-      row("Rules", '<span class="mono">' + esc(r.version || "arena-v1") + "</span><small>caller score: 100 × (0.6·profit + 0.4·beats the coin) × (0.6 + 0.4·drops)</small>");
+      (v ? row("Published on Arc (ERC-8004)", '<span class="cb-hash">' + esc(C.shortHash(v.responseHash, 12, 8)) + "</span><small>score " + esc(v.score) + " · " + esc(C.stamp(v.at)) + "</small>") : "") +
+      row("Prices", "Hyperliquid candle opens: 5-minute candles for predictions held under an hour, hourly for longer<small>entry at the first open at or after the entry time, exit at the first open after it’s been held its full time, less fees and funding</small>") +
+      (r.reference ? row("Reference coins", esc(Array.isArray(r.reference) ? r.reference.join(", ") : String(r.reference)) + "<small>for a prediction that can’t be priced</small>") : "") +
+      row("Rules", '<span class="mono">' + esc(r.version || "arena-v1") + "</span><small>score: 100 × (0.6·profit + 0.4·beats the coin) × (0.6 + 0.4·drops)</small>");
   }
 
   function ticks() {
@@ -250,8 +250,8 @@
     var rs = null;
     window.addEventListener("resize", function () { clearTimeout(rs); rs = setTimeout(function () { chart(x); }, 150); });
   }).catch(function (err) {
-    $("name").innerHTML = '<span id="name-t">Caller not found</span>';
-    $("meta").innerHTML = esc(err.message || "") + ' <a href="/arena?board=callers">Back to all callers</a>';
+    $("name").innerHTML = '<span id="name-t">Record not found</span>';
+    $("meta").innerHTML = esc(err.message || "") + ' <a href="/arena?board=callers">Back to the leaderboard</a>';
     $("tags").innerHTML = "";
     ["stats", "report", "val"].forEach(function (k) { $(k).innerHTML = ""; });
     $("plot").innerHTML = "";

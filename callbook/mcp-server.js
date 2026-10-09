@@ -144,7 +144,7 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
   const server = new McpServer({ name: "reins", version: VERSION });
 
   server.registerTool("arena_markets", {
-    title: "Coins you can call",
+    title: "Coins you can predict",
     description: "Liquid Hyperliquid perpetuals you can name in a call, most traded first, with 24h volume in USD, mark price and hourly funding. Any listed perp works; this is the liquid ones.",
     inputSchema: {
       limit: z.number().int().min(1).max(200).optional().describe("How many (default 30)"),
@@ -156,7 +156,7 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
   }));
 
   server.registerTool("arena_lock", {
-    title: "Lock a call",
+    title: "Make a prediction",
     description:
       "Lock an open call on Arc: a coin, long or short, and how long (horizon, default 4h). The coin and side stay hidden until the reveal. " +
       "Optionally a stop and/or a target price: the call then closes at the first one the price touches, or at the horizon (its longest hold, 7 days at most) if neither is. " +
@@ -173,7 +173,7 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
   }, run(({ coin, side, horizon = "4h", book, stop, target }) => client.lock({ coin, side, horizon, book, stop, target })));
 
   server.registerTool("arena_open", {
-    title: "Open a book",
+    title: "Start a strategy record",
     description:
       "Open a strategy book (kind=strategy: one call every period, no skipping; a skipped round is a miss) or a call book (kind=calls: calls whenever you like). " +
       "A call book without coins is your open-call book, which opens by itself with your first lock. Optionally link an ERC-8004 agent you own.",
@@ -193,7 +193,7 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
     : client.openCallBook({ coins, minHorizon, maxHorizon, name, agentId }))));
 
   server.registerTool("arena_seal", {
-    title: "Lock this round's call (strategy book)",
+    title: "This round's prediction (strategy record)",
     description:
       "Seal the next round's call for a strategy book: a coin from the book and long, short or flat. Rounds must be sealed at least 60s before they start, " +
       "once each; the reply says when it starts and when it can be revealed. Salts are derived, so there's nothing to save.",
@@ -205,7 +205,7 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
   }, run(({ book, coin, side }) => client.seal({ book, coin, side })));
 
   server.registerTool("arena_reveal_due", {
-    title: "Reveal calls that are due",
+    title: "Reveal predictions that are due",
     description: "Reveal every call of yours whose horizon has passed (seals and locks). Safe to run any time; it reports what isn't due yet and when it will be. Unrevealed calls score as their worst outcome after 7 days.",
     inputSchema: {},
   }, run(() => client.revealDue()));
@@ -223,7 +223,7 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
   }, run(({ book }) => client.verify({ book })));
 
   server.registerTool("arena_my_books", {
-    title: "My books",
+    title: "My records",
     description: "Books this key owns (or was allowed to call in): kind, coins, timing, how many calls, what's due to reveal, and the next round to seal.",
     inputSchema: {},
   }, run(async () => {
@@ -280,11 +280,11 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
   }, run(() => client.unlinkWallet()));
 
   server.registerResource("guide", "arena://guide", {
-    title: "How Arena works", description: "The rules in one page: open calls, strategy books, reveals and scores.", mimeType: "text/markdown",
+    title: "How Arena works", description: "The rules in one page: predictions, strategy records, reveals and scores.", mimeType: "text/markdown",
   }, async (uri) => ({ contents: [{ uri: uri.href, mimeType: "text/markdown", text: GUIDE }] }));
 
   server.registerPrompt("seal_round", {
-    title: "Lock this round's call (strategy book)",
+    title: "This round's prediction (strategy record)",
     description: "Decide and seal the next round's call for a strategy book.",
     argsSchema: { book: z.string().describe("Strategy book id") },
   }, ({ book }) => ({
@@ -300,7 +300,7 @@ export function createCallbookMcpServer({ client, keyFile = null }) {
   }));
 
   server.registerPrompt("lock_call", {
-    title: "Lock a call",
+    title: "Make a prediction",
     description: "Lock an open call on a coin.",
     argsSchema: { coin: z.string().describe("e.g. ETH"), side: z.string().describe("long or short"), horizon: z.string().optional().describe("e.g. 4h") },
   }, ({ coin, side, horizon }) => ({

@@ -271,7 +271,7 @@ window.ReinsUI = (function () {
     };
     var draw = function () {
       var s = savedSession();
-      var arena = [["info", "How Arena works", "/arena-guide", "sub", false, "Lock a call, get a record"]];
+      var arena = [["info", "How Arena works", "/arena-guide", "sub", false, "Build a record anyone can check"]];
       onSub = arena.some(function (it) { return path === it[2].toLowerCase(); }) || (!!s && path === "/arena/p/" + s.address.toLowerCase());
       var arc = [];
       if ($("nav-explorer")) arc.push(["window", "Block explorer", $("nav-explorer").href, "sub", true]);

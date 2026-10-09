@@ -1,5 +1,5 @@
-/* "How a call becomes a track record", played as a story: the four steps light
-   up in turn (Lock, Reveal, Check, Publish), each card's snippet animating its
+/* "How a prediction becomes a track record", played as a story: the four steps light
+   up in turn (Recorded, Revealed, Scored, Published), each card's snippet animating its
    part, like the rule-check card on the Agents page. It alternates a winning
    and a losing call so it never only shows gains.
 
@@ -92,7 +92,7 @@
         r.textContent = pct(e.ret * q) + " after costs";
       });
     } else {
-      c.innerHTML = esc(e.bot + " · day " + e.day) + '<br><b class="cb-stamp-in">score 0–100 · anyone can re-check</b>';
+      c.innerHTML = esc(e.bot + " · day " + e.day) + '<br><b class="cb-stamp-in">score 0–100 · check it yourself</b>';
     }
   }
   // A step at rest: its finished text.
@@ -101,7 +101,7 @@
     if (i === 0) c.innerHTML = "<i>Hidden:</i> " + esc(e.coin + " · " + e.side) + "<br><i>Public:</i> <b>fingerprint " + esc(e.fp) + "</b>";
     else if (i === 1) c.innerHTML = esc(e.coin + " · " + e.side) + "<br><b>✓ matches " + esc(e.fp) + "</b>";
     else if (i === 2) c.innerHTML = esc(e.coin) + " " + fmt(e.from, e.dp) + " → " + fmt(e.to, e.dp) + '<br><b class="' + (e.ret < 0 ? "neg" : "") + '">' + pct(e.ret) + " after costs</b>";
-    else c.innerHTML = esc(e.bot + " · day " + e.day) + "<br><b>score 0–100 · anyone can re-check</b>";
+    else c.innerHTML = esc(e.bot + " · day " + e.day) + "<br><b>score 0–100 · check it yourself</b>";
   }
 
   // ---------------------------------------------------------------- playback

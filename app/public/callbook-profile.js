@@ -30,14 +30,14 @@
   }
   function header(person, recs, D) {
     var name = nameFor(person, recs);
-    document.title = name + " · Arena · Reins";
+    document.title = name + " · Arena by Reins";
     $("crumb").textContent = name;
     $("name").textContent = name;
     $("av").innerHTML = C.identicon(ADDR, 72);
     var agents = recs.filter(function (r) { return r.nameSource === "agent"; }).length;
     $("tags").innerHTML = (recs.some(function (r) { return r.ours; }) ? '<span class="cb-tag" tabindex="0" data-tip="Run by Reins, scored by the same rules as everyone">Reins</span>' : "") +
-      (recs.some(function (r) { return r.sample; }) ? '<span class="cb-tag" tabindex="0" data-tip="A sample caller in the replay">Sample</span>' : "") +
-      (agents ? '<span class="cb-tag" tabindex="0" data-tip="Named by its linked ERC-8004 agent">Linked agent</span>' : "");
+      (recs.some(function (r) { return r.sample; }) ? '<span class="cb-tag" tabindex="0" data-tip="A sample record in the replay">Sample</span>' : "") +
+      (agents ? '<span class="cb-tag" tabindex="0" data-tip="Named by its agent in the open registry on Arc (ERC-8004)">Linked agent</span>' : "");
     var bio = person && person.bio;
     $("bio").textContent = bio || "";
     $("bio").hidden = !bio;
@@ -64,9 +64,9 @@
     $("stats").innerHTML =
       card("Best score", best ? esc(Math.round(C.scoreOf(best))) + '<small class="cbp-of">/100</small>' : "—",
         best ? esc(C.nameOf(best)) + (best.score && best.score.parts && best.score.parts.level ? " · " + esc(C.own(C.RECORD, best.score.parts.level) || "") : "") : "not scored yet") +
-      card("Calls", esc(C.int(calls)), esc(C.int(revealed)) + " revealed across " + recs.length + " record" + (recs.length === 1 ? "" : "s")) +
-      card("Made money", revealed ? Math.round(wins / revealed * 100) + "%" : "—", "of revealed calls, after costs") +
-      card("Active since", isFinite(since) ? esc(C.day(since)) : "—", '<span id="last">' + (last ? "last call " + esc(C.ago(last)) : "no calls yet") + "</span>");
+      card("Predictions", esc(C.int(calls)), esc(C.int(revealed)) + " revealed across " + recs.length + " record" + (recs.length === 1 ? "" : "s")) +
+      card("Made money", revealed ? Math.round(wins / revealed * 100) + "%" : "—", "of revealed predictions, after costs") +
+      card("Active since", isFinite(since) ? esc(C.day(since)) : "—", '<span id="last">' + (last ? "last prediction " + esc(C.ago(last)) : "no predictions yet") + "</span>");
   }
 
   // ------------------------------------------------------------- records
@@ -81,14 +81,14 @@
   }
   function recCard(r) {
     var x = r.metrics || {}, sc = C.scoreOf(r), lv = r.score && r.score.parts && r.score.parts.level;
-    var kind = r.kind === "caller" ? "Open calls" : "Strategy · every " + C.hours(r.periodSec);
+    var kind = r.kind === "caller" ? "Predicts any time" : "One prediction every " + C.hours(r.periodSec);
     return '<a class="cbp-rec" href="' + hrefOf(r) + '">' +
       '<span class="cbp-rec-h"><b>' + esc(C.nameOf(r)) + "</b><small>" + esc(kind) + (r.closed ? " · closed" : "") +
         (r.via ? " · via agent " + esc(U.short(r.via)) : "") + "</small></span>" +
       '<span class="cbp-rec-s">' + (C.isNum(sc) ? "<b>" + esc(Math.round(sc)) + '</b><i style="--v:' + Math.max(0, Math.min(100, sc)) + '%" aria-hidden="true"></i>' +
         (lv ? "<small>" + esc(C.own(C.RECORD, lv) || "") + "</small>" : "") : '<span class="muted">not scored yet</span>') + "</span>" +
       spark(r.curve) +
-      '<span class="cbp-rec-n"><span>' + esc(C.int(x.calls || 0)) + " calls</span><span>" + C.pctHtml(x.totalReturn, 1) + "</span></span></a>";
+      '<span class="cbp-rec-n"><span>' + esc(C.int(x.calls || 0)) + " predictions</span><span>" + C.pctHtml(x.totalReturn, 1) + "</span></span></a>";
   }
   function records(recs) {
     var order = recs.slice().sort(function (a, b) { return (C.scoreOf(b) || -1) - (C.scoreOf(a) || -1) || a.id - b.id; });
@@ -101,8 +101,8 @@
   function callTime(c) { return C.isNum(c.lockedAt) ? c.lockedAt : C.isNum(c.sealedAt) ? c.sealedAt : c.start; }
   function callRow(item) {
     var c = item.c, r = item.r, when = callTime(c);
-    var call = c.status === "pending" ? '<span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>Locked, hidden until it’s revealed</span>'
-      : c.status === "missed" ? '<span class="muted">Missed round</span>'
+    var call = c.status === "pending" ? '<span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>Recorded, hidden until it’s revealed</span>'
+      : c.status === "missed" ? '<span class="muted">Missed</span>'
       : c.status === "withheld" ? '<span class="cb-note held">Kept hidden: scored as its worst</span>'
       : '<span class="cb-call"><b>' + esc(c.coin || c.symbol || "—") + "</b>" + C.sidePill(c.side) + "</span>";
     return "<tr><td class=\"c-round\"><b>" + esc(C.stamp(when).replace(" UTC", "")) + "</b><small>" + esc(C.ago(when)) + "</small></td>" +
@@ -118,9 +118,9 @@
       loaded.filter(Boolean).forEach(function (l) { (l.d.calls || []).forEach(function (c) { if (C.isNum(callTime(c))) items.push({ r: l.r, c: c }); }); });
       items.sort(function (a, b) { return callTime(b.c) - callTime(a.c); });
       // Strategy books carry no last-call time in the index; their details do.
-      if (items.length && $("last")) $("last").textContent = "last call " + C.ago(callTime(items[0].c));
+      if (items.length && $("last")) $("last").textContent = "last prediction " + C.ago(callTime(items[0].c));
       $("calls").innerHTML = items.length ? items.slice(0, LATEST).map(callRow).join("") :
-        '<tr><td class="empty" colspan="4"><b>No calls yet</b>Calls show here as soon as they’re locked.</td></tr>';
+        '<tr><td class="empty" colspan="4"><b>No predictions yet</b>They show here as soon as they’re recorded.</td></tr>';
     });
   }
 

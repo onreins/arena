@@ -7,7 +7,7 @@
   var $ = function (id) { return document.getElementById(id); };
   U.topbar("callbook");
   C.tooltips();
-  $("crumb-ic").innerHTML = U.icon("right");
+  $("crumb-ic").innerHTML = $("crumb-ic-2").innerHTML = U.icon("right");
   $("guil").innerHTML = C.guilloche(1200, 420, 0.87);
 
   var B = null, EXP = null, shown = 0, PAGE = 50, order = [];
@@ -17,26 +17,26 @@
   function coinList(c) { c = c || []; return c.slice(0, 4).join(", ") + (c.length > 4 ? " and " + (c.length - 4) + " more" : ""); }
   function header(b) {
     var W = C.where(B);
-    document.title = C.nameOf(b) + " · Arena · Reins";
+    document.title = C.nameOf(b) + " · Arena by Reins";
     $("crumb").textContent = C.nameOf(b);
     $("name").innerHTML = U.coins(b.coins) + '<span id="name-t">' + esc(C.nameOf(b)) + "</span>";
     var base = !!(b.baseline || b.control) || /^a control\b/i.test(b.description || "");
-    $("tags").innerHTML = (b.ours ? '<span class="cb-tag" tabindex="0" data-tip="Run by Reins, scored by the same rules as every bot">Reins</span>' : "") +
-      (base ? '<span class="cb-tag" tabindex="0" data-tip="A control with no edge by design: it shows what luck alone looks like under these rules">Baseline</span>' : "") +
+    $("tags").innerHTML = (b.ours ? '<span class="cb-tag" tabindex="0" data-tip="Run by Reins, scored by the same rules as every agent">Reins</span>' : "") +
+      (base ? '<span class="cb-tag" tabindex="0" data-tip="A control with no edge by design: random picks. It pays fees and funding like any position, so it drifts below zero — the bar every agent has to beat">Baseline</span>' : "") +
       C.movedTag(b) + C.challengePill(b.challenge, true) + C.statusPill(B) +
       (b.closed ? '<span class="tagp">Closed</span>' : "");
     $("proof-k").hidden = false;
     $("desc").textContent = b.description || "";
     $("desc").hidden = !b.description;
-    $("meta").innerHTML = "One call on " + '<span title="' + esc((b.coins || []).join(", ")) + '">' + esc(coinList(b.coins)) + "</span> every <b>" + esc(C.hours(b.periodSec)) +
-      "</b>, revealed <b>" + esc(C.hours(b.horizonSec)) + "</b> later · " + (C.isNum(b.start) ? "first round " + esc(C.stamp(b.start, true)) : "opened " + esc(C.stamp(b.openedAt, true))) + C.moreFrom(b);
+    $("meta").innerHTML = "One prediction on " + '<span title="' + esc((b.coins || []).join(", ")) + '">' + esc(coinList(b.coins)) + "</span> every <b>" + esc(C.hours(b.periodSec)) +
+      "</b>, each held <b>" + esc(C.hours(b.horizonSec)) + "</b> · " + (C.isNum(b.start) ? "started " + esc(C.stamp(b.start, true)) : "opened " + esc(C.stamp(b.openedAt, true))) + C.moreFrom(b);
     var fact = function (k, v, tip) { return "<div><dt" + (tip ? ' data-tip="' + esc(tip) + '" tabindex="0"' : "") + ">" + esc(k) + "</dt><dd>" + v + "</dd></div>"; };
     $("facts").innerHTML =
-      fact("Strategy hash", '<span class="cb-hash" title="' + esc(b.strategyHash) + '">' + esc(C.shortHash(b.strategyHash, 10, 6)) + "</span>" + C.copyButton(b.strategyHash, "Copy the strategy hash"),
+      fact("Rules hash", '<span class="cb-hash" title="' + esc(b.strategyHash) + '">' + esc(C.shortHash(b.strategyHash, 10, 6)) + "</span>" + C.copyButton(b.strategyHash, "Copy the rules hash"),
         "The rules stay private; this hash fixes them, so they can't change quietly.") +
       fact("ERC-8004 agent", C.isNum(b.agentId) ? '<span class="mono">#' + esc(b.agentId) + "</span>" : '<span class="muted">not linked</span>') +
       fact("Owner", C.txLink(EXP, b.owner, U.short(b.owner), "address")) +
-      fact("Agent key", C.txLink(EXP, b.caller, U.short(b.caller), "address"), "The key allowed to seal this book's calls");
+      fact("Agent key", C.txLink(EXP, b.caller, U.short(b.caller), "address"), "The key allowed to seal this agent's predictions");
   }
 
   // The latest validation, as a seal (the score's arc inside the stamp's ring),
@@ -44,7 +44,7 @@
   function validation(b) {
     var v = b.validation, W = C.where(B), sc = C.scoreOf(b);
     if (!C.isNum(sc)) {
-      $("val").innerHTML = '<div class="cbk-stampcol"><div class="cbk-stampw">' + C.seal("cbk-stamp idle", "ARENA · ERC-8004 · AWAITING SCORE · ") + '</div><figcaption><b>Not scored yet</b><span>The first score is posted to ERC-8004 after a full day of calls.</span></figcaption></div>' + C.skillPanel(b.skill);
+      $("val").innerHTML = '<div class="cbk-stampcol"><div class="cbk-stampw">' + C.seal("cbk-stamp idle", "ARENA · ERC-8004 · AWAITING SCORE · ") + '</div><figcaption><b>Not scored yet</b><span>The first score is published after a full day of predictions.</span></figcaption></div>' + C.skillPanel(b.skill);
       return;
     }
     var s = Math.max(0, Math.min(100, sc)), r = 30, c = 2 * Math.PI * r, why = C.scoreWhy(b);
@@ -54,7 +54,7 @@
       '<circle class="v" cx="50" cy="50" r="' + r + '" stroke-dasharray="' + (s / 100 * c).toFixed(2) + " " + c.toFixed(2) + '"/></svg>' +
       '<div class="cbk-score"><b>' + esc(Math.round(s)) + '</b><span>/100</span></div></div>' +
       "<figcaption><b>" + (s === 0 && why && why.short ? "Score 0 · " + esc(why.short) : "Score, out of 100") + "</b>" +
-      "<span>" + (v ? "Published to ERC-8004 <span class=\"nb\">" + esc(C.ago(v.at)) + "</span>" : "Updated daily") + "</span></figcaption></div>" + breakdown(b, s, why) + C.skillPanel(b.skill);
+      "<span>" + (v ? "Published on Arc (ERC-8004) <span class=\"nb\">" + esc(C.ago(v.at)) + "</span>" : "Updated daily") + "</span></figcaption></div>" + breakdown(b, s, why) + C.skillPanel(b.skill);
   }
   function breakdown(b, s, why) {
     return C.scoreParts(b, "the market", why && why.next);
@@ -72,27 +72,27 @@
     };
     var due = m.calls - m.missed - (m.pending || 0);
     $("stats").innerHTML =
-      card("Return", C.pctHtml(m.totalReturn), "over " + esc(Math.floor(m.days)) + " days, after " + esc(costs.replace("real hourly Hyperliquid ", "")), "Compounded over every revealed and withheld call, after " + costs) +
-      card("Vs market", C.pctHtml(m.vsMarket), (!C.isNum(m.vsMarket) ? "no revealed calls yet" : (m.vsMarket >= 0 ? "ahead of" : "behind") + " its coins’ own move, after fees"),
-        "Each call's return less the equal-weight move of the book's coins over the same window, in the direction called. For a one-coin book this is close to its fees and funding, so it says little.") +
-      card("Steadiness", young ? '<span class="cb-young">' + C.num(m.sharpe) + "</span>" : C.num(m.sharpe),
+      card("Return", C.pctHtml(m.totalReturn), "over " + esc(Math.floor(m.days)) + " days, after " + esc(costs.replace("real hourly Hyperliquid ", "")), "Compounded over every revealed and hidden prediction, after " + costs) +
+      card("Vs market", C.pctHtml(m.vsMarket), (!C.isNum(m.vsMarket) ? "no revealed predictions yet" : (m.vsMarket >= 0 ? "ahead of" : "behind") + " its coins’ own move, after fees"),
+        "Each prediction's return less the equal-weight move of the agent's coins over the same window, in the direction predicted. For a one-coin agent this is close to its fees and funding, so it says little.") +
+      card("Sharpe", young ? '<span class="cb-young">' + C.num(m.sharpe) + "</span>" : C.num(m.sharpe),
         young ? "only " + esc(Math.floor(m.days)) + " days: too few to mean much" : steadiness(m.sharpe),
         "Sharpe ratio: daily returns, annualised, with Vanta's definitions. Sortino " + C.num(m.sortino) + ", Omega " + C.num(m.omega) + ".") +
       card("Worst drop", '<span class="' + (eod > LIMITS.eodDrawdown ? "down" : "") + '">' + C.dd(eod) + "</span>",
         "at a day’s close · limit 5%" + (C.isNum(m.eodDrawdown) && C.isNum(m.maxDrawdown) ? " · " + C.dd(m.maxDrawdown) + " inside a day" : ""),
         "Worst fall from a high at a day's close, the challenge's measure. The overall figure also counts falls inside a day.") +
-      card("Calls that won", C.isNum(m.winRate) ? (m.winRate * 100).toFixed(1) + "%" : "—", "of its long and short calls, after costs") +
+      card("Predictions that won", C.isNum(m.winRate) ? (m.winRate * 100).toFixed(1) + "%" : "—", "of its long and short predictions, after costs") +
       card("Average day", C.pctHtml(m.avgDailyPnl, 2), !C.isNum(m.avgDailyPnl) ? "no full day yet" : m.avgDailyPnl >= 0 ? "gained on a typical day" : "lost on a typical day") +
-      card("Sat out", C.isNum(m.flatShare) ? Math.round(m.flatShare * 100) + "%" : "—", "of calls were flat: no position, still counted") +
+      card("Sat out", C.isNum(m.flatShare) ? Math.round(m.flatShare * 100) + "%" : "—", "of predictions were flat: no position, still counted") +
       card("Revealed", C.int(m.revealed) + '<span class="cbk-of">/' + C.int(due) + "</span>",
-        (m.missed || m.withheld ? esc(C.int(m.missed)) + " missed · " + esc(C.int(m.withheld)) + " kept hidden" : "every call due was revealed") + (m.pending ? " · " + esc(C.int(m.pending)) + " still locked" : ""),
-        "Calls revealed out of calls due. A sealed call isn't due until its horizon has passed.");
+        (m.missed || m.withheld ? esc(C.int(m.missed)) + " missed · " + esc(C.int(m.withheld)) + " kept hidden" : "every prediction due was revealed") + (m.pending ? " · " + esc(C.int(m.pending)) + " not yet revealed" : ""),
+        "Predictions revealed, out of those due. A prediction isn't due until its time is up.");
   }
 
   // ------------------------------------------------------------- record
   function chart(b) {
     var a = (b.curve || []).filter(function (p) { return C.isNum(p.v); });
-    if (a.length < 2) { $("plot").innerHTML = '<div class="plot-empty">The record starts once the first calls are revealed.</div>'; return; }
+    if (a.length < 2) { $("plot").innerHTML = '<div class="plot-empty">The record starts once the first predictions are revealed.</div>'; return; }
     // Drawn at the box's real size, so its labels never stretch.
     var box = $("plot"), W = Math.max(280, Math.round(box.clientWidth || 680)), H = Math.max(220, Math.round(box.clientHeight || 260)), P = { l: 6, r: 52, t: 12, b: 24 };
     var peak = 0, lim = a.map(function (p) { peak = Math.max(peak, p.v); return peak * (1 - LIMITS.eodDrawdown); });
@@ -148,7 +148,7 @@
     var c = b.challenge || {}, m = b.metrics;
     $("ch-pill").innerHTML = C.challengePill(c, false);
     var lead = c.status === "passed" ? "Passed: it made +10% within the drawdown limits." :
-      c.status === "failed" ? "Failed: " + C.challengeLine(b) + ". Its calls are still recorded and scored." :
+      c.status === "failed" ? "Failed: " + C.challengeLine(b) + ". Its predictions are still recorded and scored." :
       "In progress: " + C.challengeLine(b) + ". It passes with +10% after day 61, inside the limits.";
     $("ch-why").innerHTML = esc(lead) + ((c.reasons || []).length ? '<small>' + esc((c.reasons || []).join(". ")) + "</small>" : "");
     var day = c.day || Math.ceil(m.days), of = c.of || L.maxDays;
@@ -160,14 +160,14 @@
       bar("Return", m.totalReturn, C.pctHtml(m.totalReturn) + ' <span class="muted">of +' + (L.targetReturn * 100).toFixed(0) + "%</span>", m.totalReturn / L.targetReturn, null,
         m.totalReturn >= L.targetReturn ? "ok" : "", "Target to pass: +" + (L.targetReturn * 100).toFixed(0) + "% after fees.") +
       (intra !== null ? bar("Intraday drawdown", intra, C.dd(intra) + ' <span class="muted">of −' + (L.intradayDrawdown * 100).toFixed(0) + "%</span>", intra / L.intradayDrawdown, null,
-        tone(intra, L.intradayDrawdown), "Worst fall inside a period. Past the limit, the book fails.") : "") +
+        tone(intra, L.intradayDrawdown), "Worst fall inside a day. Past the limit, the agent fails.") : "") +
       bar("End-of-day drawdown", eod, C.dd(eod) + ' <span class="muted">of −' + (L.eodDrawdown * 100).toFixed(0) + "%</span>", eod / L.eodDrawdown, null,
         tone(eod, L.eodDrawdown), "Worst fall from a high at a day's close.");
   }
 
   // ------------------------------------------------------------- the tape
   function cellOf(c) {
-    if (c.status === "pending") return ["pend", "locked, revealed at " + C.stamp(c.start + B.horizonSec)];
+    if (c.status === "pending") return ["pend", "recorded, revealed at " + C.stamp(c.start + B.horizonSec)];
     if (c.status === "missed") return ["miss", "missed"];
     if (c.status === "withheld") return ["held", "kept hidden, counted as its worst: " + C.pct(c.ret, 2)];
     if (!c.side) return ["flat", (c.coin || "") + " flat"];
@@ -188,27 +188,27 @@
     return '<span class="cbk-lk">' + U.icon("lock") + esc(C.stamp(c.sealedAt).replace(" UTC", "")) + "</span><small>" + (lead > 0 ? esc(C.span(lead)) + " before it began" : "") + "</small>";
   }
   function proofCell(c) {
-    var a = c.hash ? '<span title="Fingerprint locked before the round: ' + esc(c.hash) + '">' + C.txLink(EXP, c.sealTx, C.shortHash(c.hash, 6, 4)) + "</span>" : "";
+    var a = c.hash ? '<span title="Fingerprint recorded before it began: ' + esc(c.hash) + '">' + C.txLink(EXP, c.sealTx, C.shortHash(c.hash, 6, 4)) + "</span>" : "";
     var r = c.revealTx ? "<small>revealed " + C.txLink(EXP, c.revealTx, C.shortHash(c.revealTx, 4, 4)) + "</small>" : "";
     return a || r ? a + r : '<span class="muted">—</span>';
   }
   // One row per round. Each cell has a class, so a phone can stack the row.
   function callRow(c) {
     var id = ' id="p-' + esc(c.period) + '"';
-    var per = '<td class="c-round"><b>' + esc(C.stamp(c.start).replace(" UTC", "")) + '</b><small>round #' + esc(C.int(c.period)) + "</small></td>";
+    var per = '<td class="c-round"><b>' + esc(C.stamp(c.start).replace(" UTC", "")) + '</b><small>#' + esc(C.int(c.period)) + "</small></td>";
     var lock = '<td class="c-lock">' + hashCell(c) + "</td>", proof = '<td class="r c-proof">' + proofCell(c) + "</td>";
     if (c.status === "pending") {
       return '<tr class="pend"' + id + ">" + per + lock +
-        '<td class="c-note" colspan="3"><span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>Locked · revealed in <b class="mono" data-until="' + esc(c.start + B.horizonSec) + '">' +
+        '<td class="c-note" colspan="3"><span class="cb-pend"><span class="cb-dot sealed" aria-hidden="true"></span>Recorded · revealed in <b class="mono" data-until="' + esc(c.start + B.horizonSec) + '">' +
         esc(C.span(c.start + B.horizonSec - C.now())) + "</b></span></td>" + proof + "</tr>";
     }
     if (c.status === "missed") {
       return '<tr class="miss"' + id + ">" + per + '<td class="c-lock"><span class="muted">—</span></td><td class="c-note" colspan="3"><span class="cb-note miss">' + U.icon("miss") +
-        "Missed a call: nothing was locked for this round, so it counts against the bot.</span></td><td class=\"c-proof\"></td></tr>";
+        "Missed: nothing was recorded in time, so it counts against the agent.</span></td><td class=\"c-proof\"></td></tr>";
     }
     if (c.status === "withheld") {
       return '<tr class="held"' + id + ">" + per + lock + '<td class="c-note" colspan="2"><span class="cb-note held">' + U.icon("lock") +
-        "Kept hidden: locked but never revealed, so it counts as its worst result" + (c.worst && c.worst.coin ? " (" + esc(c.worst.coin) + " " + (c.worst.side > 0 ? "long" : "short") + ")" : "") + ".</span></td>" +
+        "Kept hidden: recorded but never revealed, so it counts as its worst result" + (c.worst && c.worst.coin ? " (" + esc(c.worst.coin) + " " + (c.worst.side > 0 ? "long" : "short") + ")" : "") + ".</span></td>" +
         '<td class="r mono c-ret">' + C.pctHtml(c.ret, 2) + "</td>" + proof + "</tr>";
     }
     var ex = c.side ? '<span class="mono">' + esc(fmtPx(c.entry)) + ' <span class="muted">→</span> ' + esc(fmtPx(c.exit)) + "</span>" : '<span class="muted">sat out</span>';
@@ -225,18 +225,18 @@
   }
   function renderRows(n) {
     shown = Math.min(order.length, Math.max(n, shown));
-    $("calls").innerHTML = order.length ? order.slice(0, shown).map(callRow).join("") : '<tr><td class="empty" colspan="6"><b>No calls yet</b>The bot’s first call shows here as soon as it’s locked, and its result ' + (B && (B.horizonSec || B.periodSec) ? esc(C.hours(B.horizonSec || B.periodSec)) + " later" : "after it’s revealed") + ".</td></tr>";
+    $("calls").innerHTML = order.length ? order.slice(0, shown).map(callRow).join("") : '<tr><td class="empty" colspan="6"><b>No predictions yet</b>The agent’s first prediction shows here as soon as it’s recorded, and its result ' + (B && (B.horizonSec || B.periodSec) ? esc(C.hours(B.horizonSec || B.periodSec)) + " later" : "after it’s revealed") + ".</td></tr>";
     $("more").hidden = shown >= order.length;
-    $("more").textContent = "Show " + Math.min(PAGE, order.length - shown) + " earlier calls";
+    $("more").textContent = "Show " + Math.min(PAGE, order.length - shown) + " earlier predictions";
   }
   function tape(b) {
     var calls = (b.calls || []).slice().sort(function (x, y) { return x.period - y.period; });
     order = calls.slice().reverse();
     var n = function (s) { return calls.filter(function (c) { return c.status === s; }).length; };
     var pend = n("pending");
-    $("t-sum").textContent = C.int(calls.length) + " rounds · " + C.int(n("revealed")) + " revealed · " + C.int(n("missed")) + " missed · " + C.int(n("withheld")) + " kept hidden" +
-      (pend ? " · " + pend + " still locked" : "");
-    $("strip-sr").textContent = "The table below lists every call, newest first.";
+    $("t-sum").textContent = C.int(calls.length) + " predictions · " + C.int(n("revealed")) + " revealed · " + C.int(n("missed")) + " missed · " + C.int(n("withheld")) + " kept hidden" +
+      (pend ? " · " + pend + " not yet revealed" : "");
+    $("strip-sr").textContent = "The table below lists every prediction, newest first.";
     strip(calls);
     renderRows(30);
     $("strip").addEventListener("click", function (e) {
@@ -261,8 +261,8 @@
     });
     if (B) {
       var end = C.nextBoundary(B), sealedNext = B.next && B.next.sealed && B.next.startsAt === end;
-      $("next").innerHTML = '<span class="cb-dot ' + (sealedNext ? "sealed" : "idle") + '" aria-hidden="true"></span>Next call locks in <b class="mono">' + C.clock(end - t) + "</b>" +
-        '<span class="muted">round #' + esc(C.int(C.periodAt(B, end))) + " · " + (sealedNext ? "already locked" : "not locked yet") + "</span>";
+      $("next").innerHTML = '<span class="cb-dot ' + (sealedNext ? "sealed" : "idle") + '" aria-hidden="true"></span>Next prediction starts in <b class="mono">' + C.clock(end - t) + "</b>" +
+        '<span class="muted">#' + esc(C.int(C.periodAt(B, end))) + " · " + (sealedNext ? "already recorded" : "not recorded yet") + "</span>";
     }
   }
 
@@ -273,11 +273,11 @@
     $("report").innerHTML =
       row("Report hash", r.hash ? '<span class="cb-hash">' + esc(C.shortHash(r.hash, 12, 8)) + "</span>" + C.copyButton(r.hash, "Copy the report hash") : '<span class="muted">—</span>') +
       (C.isHttp(r.uri) ? row("Full report", '<a class="cb-hash" href="' + esc(r.uri) + '" target="_blank" rel="noopener">' + esc(r.uri) + U.icon("ext") + "</a>") : "") +
-      (v ? row("Posted to ERC-8004", '<span class="cb-hash">' + esc(C.shortHash(v.responseHash, 12, 8)) + "</span><small>response hash · score " + esc(v.score) + " · " + esc(C.stamp(v.at)) + "</small>") : "") +
+      (v ? row("Published on Arc (ERC-8004)", '<span class="cb-hash">' + esc(C.shortHash(v.responseHash, 12, 8)) + "</span><small>response hash · score " + esc(v.score) + " · " + esc(C.stamp(v.at)) + "</small>") : "") +
       (b.request && b.request.requestHash ? row("ERC-8004 request", '<span class="cb-hash">' + esc(C.shortHash(b.request.requestHash, 12, 8)) + "</span>" + C.copyButton(b.request.requestHash, "Copy the request hash") +
         "<small>the validation request this score answers" + (b.request.validator ? ", validator " + esc(U.short(b.request.validator)) : "") + "</small>") : "") +
       (r.uri && !C.isHttp(r.uri) ? row("Report URI", '<span class="cb-hash cbk-uri">' + esc(r.uri) + "</span>") : "") +
-      row("Prices and costs", "Hyperliquid candle open at the period start and at start + horizon<small>less " + esc(C.costsText(r.costs)) + (r.costs ? " (" + esc(r.costs) + ")" : "") + "</small>") +
+      row("Prices and costs", "Hyperliquid candle open when it starts, and again when its time is up<small>less " + esc(C.costsText(r.costs)) + (r.costs ? " (" + esc(r.costs) + ")" : "") + "</small>") +
       row("Rules", '<span class="mono">' + esc(r.version || "arena-v1") + "</span><small>" + esc(r.scoring || "Vanta Network rules (MIT)") + "</small>") +
       row("Re-check it", '<code class="cbk-cmd">' + esc(cmd) + "</code>" + C.copyButton(cmd, "Copy the command") + "<small>Rebuilds this score from the chain’s events and real prices. No keys needed.</small>");
   }
@@ -307,8 +307,8 @@
       setInterval(ticks, 1000);
     });
   }).catch(function (err) {
-    $("name").innerHTML = '<span id="name-t">Book not found</span>';
-    $("meta").innerHTML = esc(err.message || "") + ' <a href="/arena">Back to all books</a>';
+    $("name").innerHTML = '<span id="name-t">Agent not found</span>';
+    $("meta").innerHTML = esc(err.message || "") + ' <a href="/arena">Back to the leaderboard</a>';
     $("tags").innerHTML = "";
     ["stats", "bars", "report"].forEach(function (k) { $(k).innerHTML = ""; });
     $("plot").innerHTML = "";

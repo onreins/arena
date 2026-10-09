@@ -54,6 +54,180 @@
 .arena .cb-hero h1 { letter-spacing: -.035em; }
 .arena .cb-stats dd:not(.cb-st-sub) { font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 
+/* ================================================================== the landing page (arena.html)
+   One line, one live record, then short sections in the order of
+   docs/ARENA-MESSAGING.md. Big type, few words, colour only where it means something. */
+.arena .ar-sec .cb-eyebrow, .arena .cb-board .cb-eyebrow, .arena .cb-lock .cb-eyebrow { color: #a99dff; }
+.arena .cb-board-r .cb-eyebrow { color: var(--ink-3); }
+
+/* The hero: the line on the left, one real agent's record on the right. */
+.arena .ar-hero { padding: 48px 48px 52px; grid-template-columns: minmax(0, 1.12fr) minmax(330px, .88fr); gap: 40px 56px; }
+.arena .ar-hero h1 { margin-top: 22px; font-size: clamp(40px, 4.5vw, 64px); line-height: 1; letter-spacing: -.045em; max-width: 12.5ch; }
+.ar-grad { background: linear-gradient(100deg, #fff 0%, #ddd8ff 40%, #9fe8ff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ar-name { padding-right: 12px; margin-right: 2px; border-right: 1px solid rgba(255, 255, 255, .16); color: #fff; font: 600 13px var(--sans); letter-spacing: .01em; }
+.arena .ar-hero .cb-lede { margin-top: 22px; max-width: 46ch; color: #b6bde0; font-size: 17px; line-height: 1.55; }
+.arena .ar-hero .hm-cta { margin-top: 30px; gap: 10px; }
+.arena .ar-hero .cb-go { height: 48px; padding: 0 24px; font-weight: 600; }
+.ar-btn { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 22px; border-radius: 160px; color: #fff; font: 500 15px var(--sans); white-space: nowrap;
+  background: rgba(139, 124, 255, .14); box-shadow: inset 0 0 0 1px rgba(176, 166, 255, .45); transition: background-color .15s, box-shadow .15s; }
+.ar-btn:hover { background: rgba(139, 124, 255, .26); box-shadow: inset 0 0 0 1px rgba(200, 192, 255, .8); }
+.ar-btn:focus-visible, .arena .cb-go:focus-visible, .ar-rec-go:focus-visible { outline: 2px solid var(--ar-violet); outline-offset: 3px; }
+
+/* The live record card. */
+.ar-rec { position: relative; display: grid; min-width: 0; padding: 22px 22px 18px; border-radius: 20px; }
+.arena .ar-rec.ar-card { box-shadow: 0 40px 90px -40px rgba(0, 0, 0, .9), 0 0 60px -30px rgba(139, 124, 255, .55); }
+.ar-rec .ar-rec-seal { right: -20px; top: -40px; width: 100px; height: 100px; }
+.ar-rec-k { display: flex; align-items: center; gap: 8px; color: var(--ar-up); font: 600 10.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; }
+.ar-rec-k .pulse { background: var(--ar-up); }
+.ar-rec-n { margin-top: 12px; padding-right: 70px; font: 600 26px/1.12 var(--sans); letter-spacing: -.025em; overflow-wrap: anywhere; }
+.ar-rec-by { margin-top: 5px; color: var(--ink-3); font-size: 13px; }
+.ar-rec-score { margin-top: 20px; display: flex; align-items: baseline; gap: 6px; }
+.ar-rec-score b { font: 600 68px/.9 var(--sans); letter-spacing: -.05em; font-variant-numeric: tabular-nums; background: linear-gradient(180deg, #fff 30%, #c4bcff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ar-rec-score > span { color: var(--ink-3); font: 500 18px var(--sans); }
+.ar-rec-score small { margin-left: auto; align-self: center; padding: 4px 10px; border-radius: 999px; background: rgba(139, 124, 255, .14); color: #d3cdff; font: 500 11.5px var(--sans); white-space: nowrap; }
+.ar-rec-score small:empty { display: none; }
+.ar-rec-bar { display: block; margin-top: 14px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+.ar-rec-bar i { display: block; width: 0; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--ar-violet), var(--ar-cyan)); box-shadow: 0 0 12px rgba(139, 124, 255, .7); transition: width 1.1s cubic-bezier(.2, .8, .2, 1); }
+.ar-rec-f { margin: 18px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; border-radius: 14px; overflow: hidden; background: var(--ar-edge); box-shadow: 0 0 0 1px var(--ar-edge); }
+.ar-rec-f > div { min-width: 0; padding: 12px 14px; background: var(--ar-panel-2); }
+.ar-rec-f dt { color: var(--ink-4); font: 500 10.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.ar-rec-f dd { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; color: var(--ink); font: 600 19px/1.15 var(--sans); font-variant-numeric: tabular-nums; }
+.ar-rec-f dd small { color: var(--ink-4); font: 400 11.5px var(--sans); }
+.ar-rec-f dd .up { color: var(--ar-up); }
+.ar-rec-f dd .down { color: var(--ar-down); }
+.ar-rec-curve .cb-spark { width: 100%; height: 46px; margin-top: 14px; }
+.ar-rec-go { justify-self: start; margin-top: 10px; color: var(--ink-2); font: 500 13.5px var(--sans); }
+.ar-rec-go:hover { color: #fff; }
+
+/* Live proof: four numbers, dated, and the contract they come from. */
+.ar-proof { margin-top: 14px; padding: 24px 28px 18px; border-radius: 18px;
+  background: linear-gradient(var(--ar-panel), var(--ar-panel)) padding-box, linear-gradient(120deg, rgba(139, 124, 255, .3), rgba(63, 208, 255, .08) 45%, rgba(255, 255, 255, .03)) border-box;
+  border: 1px solid transparent; }
+.ar-stats { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ar-stats > div { min-width: 0; padding: 0 24px; border-left: 1px solid var(--ar-edge); }
+.ar-stats > div:first-child { padding-left: 0; border-left: 0; }
+.ar-stats dt { color: #8f98c4; font-size: 12.5px; }
+.ar-stats dd:not(.cb-st-sub) { margin-top: 8px; color: #fff; font: 600 32px/1.05 var(--sans); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.ar-proof-f { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--ar-edge); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 18px; color: var(--ink-3); font-size: 12.5px; }
+.ar-proof-f .cb-hash { font-size: 12.5px; color: #c9c2ff; }
+.ar-proof .ar-ticker { margin-top: 14px; }
+
+/* Sections: an eyebrow, one big line, one short sentence. */
+.ar-sec, .arena .cb-board { margin-top: 104px; }
+.ar-sec-h { max-width: 780px; }
+.ar-sec h2 { margin-top: 16px; font: 500 clamp(32px, 3.7vw, 52px)/1.04 var(--sans); letter-spacing: -.035em; }
+.ar-sec h2 em { font-style: italic; font-weight: 400; color: var(--ink-2); }
+.ar-sec-d { margin-top: 16px; max-width: 54ch; color: var(--ink-3); font: 400 16px/1.55 var(--sans); }
+.ar-more { margin-top: 18px; }
+.ar-more a { color: #c9c2ff; font: 500 14px var(--sans); }
+.ar-more a:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+
+/* The problem: three ways records are faked, against what an Arena record is. */
+.ar-vs { margin-top: 40px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.ar-claims, .ar-truths { list-style: none; margin: 0; padding: 0; }
+.ar-claims { display: grid; gap: 10px; }
+.ar-claims li, .ar-truths li { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.ar-claims li { padding: 18px 20px; border-radius: 14px; background: rgba(255, 255, 255, .02); box-shadow: inset 0 0 0 1px var(--line-2); }
+.ar-claims b, .ar-truths b { display: block; font: 600 16px var(--sans); }
+.ar-claims b { color: var(--ink-2); text-decoration: line-through; text-decoration-color: rgba(255, 84, 112, .55); text-decoration-thickness: 2px; }
+.ar-truths b { color: #fff; }
+.ar-claims li span:not(.ar-x), .ar-truths li span:not(.ar-ok) { display: block; margin-top: 2px; color: var(--ink-3); font-size: 13.5px; }
+.ar-x, .ar-ok { flex: none; display: grid !important; place-items: center; width: 34px; height: 34px; margin: 0 !important; border-radius: 10px; }
+.ar-x { background: rgba(255, 84, 112, .1); color: var(--ar-down); }
+.ar-ok { background: rgba(46, 230, 166, .12); color: var(--ar-up); box-shadow: 0 0 18px -6px rgba(46, 230, 166, .7); }
+.ar-x svg, .ar-ok svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.ar-truths { padding: 6px 22px; border-radius: 16px; display: grid; }
+.ar-truths li { padding: 15px 0; border-top: 1px solid var(--line); }
+.ar-truths li.ar-truths-k { display: block; padding: 12px 0 10px; border-top: 0; color: var(--ar-up); font: 600 10.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; }
+
+/* How it works: three steps, and one live prediction going through them. */
+.ar-how-grid { margin-top: 40px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 470px); gap: 48px; align-items: center; }
+.ar-steps { list-style: none; margin: 0; padding: 0; display: grid; }
+.ar-steps li { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 18px; padding-bottom: 30px; --c: var(--seal); }
+.ar-steps li:last-child { padding-bottom: 0; }
+.ar-steps li.s2 { --c: var(--rev); }
+.ar-steps li.s3 { --c: var(--ar-up); }
+.ar-steps li:not(:last-child)::before { content: ""; position: absolute; left: 21px; top: 50px; bottom: 6px; width: 2px; border-radius: 2px; background: linear-gradient(var(--c), rgba(255, 255, 255, .06)); opacity: .6; }
+.ar-step-n { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--c); font: 600 16px var(--mono);
+  background: color-mix(in srgb, var(--c) 12%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 60%, transparent), 0 0 24px -8px var(--c); }
+.ar-steps h3 { margin-top: 9px; color: #fff; font: 600 20px/1.2 var(--sans); letter-spacing: -.015em; }
+.ar-steps p { margin-top: 8px; max-width: 52ch; color: var(--ink-3); font-size: 14.5px; line-height: 1.55; }
+.ar-steps p b { color: var(--ink); font-weight: 500; }
+.arena .ar-how .cb-machine { margin: 0; padding: 20px; box-shadow: 0 40px 80px -40px rgba(0, 0, 0, .9), 0 0 0 1px rgba(139, 124, 255, .18), 0 0 70px -40px rgba(139, 124, 255, .6); }
+.arena .ar-how .cb-m-cap { padding-right: 0; }
+
+/* For builders, and check it yourself: a terminal beside the words. */
+.ar-build { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 56px; align-items: center; }
+.ar-ticks { list-style: none; margin: 24px 0 0; padding: 0; display: grid; gap: 12px; max-width: 52ch; }
+.ar-ticks li { position: relative; padding-left: 30px; color: var(--ink-3); font-size: 14.5px; line-height: 1.55; }
+.ar-ticks li::before { content: ""; position: absolute; left: 2px; top: 6px; width: 7px; height: 12px; border: solid var(--ar-up); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.ar-ticks b { color: #fff; font-weight: 500; }
+.arena .ar-build .cb-term, .arena .ar-check .cb-term { margin-top: 0; background: #08090f; box-shadow: inset 0 0 0 1px var(--ar-edge), 0 30px 70px -40px rgba(139, 124, 255, .55); }
+.arena .ar-build .cb-term-body, .arena .ar-check .cb-term-body { padding: 18px 18px 20px; font-size: 14px; }
+.ar-copy { margin-left: auto; }
+.ar-check-b { margin-top: 32px; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr); gap: 16px; align-items: center; }
+.ar-check-f { margin: 0; padding: 4px 20px; border-radius: 14px; background: rgba(255, 255, 255, .025); box-shadow: inset 0 0 0 1px var(--line-2); display: grid; align-content: center; }
+.ar-check-f > div { padding: 13px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.ar-check-f > div:last-child { border-bottom: 0; }
+.ar-check-f dt { color: var(--ink-4); font: 500 10.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; }
+.ar-check-f dd { margin-top: 6px; color: var(--ink); font-size: 14px; overflow-wrap: anywhere; }
+.ar-check-f dd small { display: block; margin-top: 3px; color: var(--ink-4); font-size: 12px; }
+.ar-check-f dd a:not(.cb-hash) { color: #c9c2ff; }
+.ar-check-f dd a:not(.cb-hash):hover { color: #fff; }
+
+/* What's next: planned, and drawn that way (a dashed edge, a "Planned" label). */
+.arena .ar-next.ar-card { position: relative; padding: 36px 40px; border-radius: 20px; overflow: hidden;
+  background: radial-gradient(600px 260px at 100% 0%, rgba(246, 196, 83, .07), transparent 70%), var(--ar-panel); border: 1px dashed rgba(246, 196, 83, .32); box-shadow: none; }
+.ar-planned { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 11px; border-radius: 999px; background: rgba(246, 196, 83, .1); color: var(--ar-gold); font: 600 11px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+.ar-planned::before { content: ""; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; }
+.ar-next h2 { font-size: clamp(26px, 2.6vw, 36px); }
+.ar-next-n { margin-top: 14px; color: var(--ink-4); font-size: 13px; }
+
+/* Try it yourself, the feed and the closing line. */
+.arena #view-main > .cb-lock { margin-top: 56px; padding: 32px 36px 24px; }
+.arena .cb-lock h2 { font-size: clamp(26px, 2.6vw, 36px); }
+.ar-close { margin: 88px auto 12px; max-width: 24ch; text-align: center; font: 500 clamp(26px, 2.8vw, 38px)/1.15 var(--sans); letter-spacing: -.03em; text-wrap: balance; }
+.ar-close em { font-style: italic; font-weight: 400; color: var(--ink-2); }
+
+@media (max-width: 1100px) {
+  .arena .ar-hero { padding: 40px 36px 44px; }
+  .ar-rec { max-width: 520px; }
+  .ar-how-grid, .ar-build, .ar-check-b { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .arena .ar-how .cb-machine { max-width: 560px; }
+  .ar-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 20px; }
+  .ar-stats > div:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 760px) {
+  .ar-sec, .arena .cb-board { margin-top: 72px; }
+  .arena .ar-hero h1 { font-size: 38px !important; max-width: none; }
+  .arena .ar-hero .cb-lede { font-size: 16px; }
+  .arena .ar-hero .hm-cta > a { flex: 1 1 100%; }
+  .ar-rec { padding: 20px 16px 16px; }
+  .ar-rec .ar-rec-seal { right: -6px; top: -30px; width: 78px; height: 78px; }
+  .ar-rec .ar-rec-k, .ar-rec .ar-rec-n { padding-right: 64px; }
+  .ar-rec-score b { font-size: 58px; }
+  .ar-rec-f dd { font-size: 17px; }
+  .ar-proof { padding: 18px 16px 14px; }
+  .ar-stats > div { padding: 0 0 0 14px; }
+  .ar-stats dd:not(.cb-st-sub) { font-size: 26px; }
+  .ar-proof-f { flex-direction: column; }
+  .ar-sec h2 { font-size: 32px; }
+  .ar-sec-d { font-size: 15px; }
+  .ar-vs { grid-template-columns: minmax(0, 1fr); margin-top: 28px; }
+  .ar-claims li { padding: 14px 16px; }
+  .ar-truths { padding: 4px 16px; }
+  .ar-how-grid { margin-top: 28px; }
+  .ar-steps li { grid-template-columns: 38px minmax(0, 1fr); gap: 14px; }
+  .ar-step-n { width: 38px; height: 38px; font-size: 14px; }
+  .ar-steps li:not(:last-child)::before { left: 18px; top: 44px; }
+  .ar-steps h3 { margin-top: 7px; font-size: 18px; }
+  .arena .ar-how .cb-machine { padding: 14px; }
+  .arena .ar-build .cb-term-body, .arena .ar-check .cb-term-body { font-size: 12.5px; padding: 14px; }
+  .arena .ar-next.ar-card { padding: 24px 18px; border-radius: 16px; }
+  .arena #view-main > .cb-lock { padding: 20px 16px 16px; }
+  .ar-close { margin-top: 64px; }
+}
+
 /* ------------------------------------------------------------------ the two tabs */
 .arena .cb-views { background: rgba(14, 16, 25, .78); box-shadow: inset 0 0 0 1px var(--ar-edge), 0 10px 30px -12px rgba(0, 0, 0, .7); }
 .arena .cb-views a[aria-current="page"] { color: #0b0c12; background: linear-gradient(120deg, #fff, #d9d3ff); box-shadow: 0 0 18px -4px rgba(139, 124, 255, .7); }
@@ -294,3 +468,18 @@
 .cbl-fine { margin-top: 6px; color: var(--ink-4); font-size: 12px; line-height: 1.5; }
 .cbl-off .cbl-join { display: none; }
 @media (prefers-reduced-motion: reduce) { .cbl-join i { animation: none; opacity: .7; } }
+
+/* ------------------------------------------------------------------ the landing board: five plain stats fit the table */
+.arena .cb-board-d a, .arena .cb-fn a { color: #c9c2ff; }
+.arena .cb-lb th { letter-spacing: .1em; }
+.arena .cb-lb td[data-k="calls"] .muted { display: block; margin-top: 2px; font-size: 11.5px; }
+@media (max-width: 1500px) { .arena .cb-lb .c-test { display: none; } }
+
+/* Questions people ask first. */
+.ar-faq-list { display: grid; gap: 10px; max-width: 880px; }
+.ar-faq-list details { border: 1px solid rgba(255,255,255,.10); border-radius: 14px; background: rgba(20,23,38,.6); padding: 16px 20px; }
+.ar-faq-list summary { cursor: pointer; font-weight: 600; color: #fff; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.ar-faq-list summary::-webkit-details-marker { display: none; }
+.ar-faq-list summary::after { content: "+"; color: #8B7CFF; font-weight: 500; }
+.ar-faq-list details[open] summary::after { content: "–"; }
+.ar-faq-list p { margin: 10px 0 0; color: #a9b0d0; line-height: 1.6; }

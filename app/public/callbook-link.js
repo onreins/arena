@@ -53,7 +53,7 @@
     $("recs").innerHTML = recs.length ? '<span class="k">Its records</span><ul>' + recs.map(function (r) {
       var sc = C.scoreOf(r);
       return "<li><span>" + esc(C.nameOf(r)) + "</span><b>" + (C.isNum(sc) ? esc(Math.round(sc)) + "<small>/100</small>" : '<span class="muted">not scored yet</span>') + "</b></li>";
-    }).join("") + "</ul>" : '<span class="k">Its records</span><p class="muted">No records yet. Its calls will show on your profile as it makes them.</p>';
+    }).join("") + "</ul>" : '<span class="k">Its records</span><p class="muted">No records yet. Its predictions will show on your profile as it makes them.</p>';
     $("recs").hidden = false;
     action();
   }

@@ -26,12 +26,12 @@ window.Callbook = (function () {
     return rebase(await json("/data/callbook-mock.json"));
   }
   async function loadCaller(id) {
-    if (!ID_RE.test(id || "")) throw new Error("That isn’t a caller id.");
+    if (!ID_RE.test(id || "")) throw new Error("That isn’t a record id.");
     try { return rebase(await json("/api/callbook/caller/" + encodeURIComponent(id))); } catch (e) { /* no API here */ }
     return rebase(await json("/data/callbook-caller-" + encodeURIComponent(id) + ".json"));
   }
   async function loadBook(id) {
-    if (!ID_RE.test(id || "")) throw new Error("That isn’t a book id.");
+    if (!ID_RE.test(id || "")) throw new Error("That isn’t an agent id.");
     var file = "/data/callbook-book-" + encodeURIComponent(id) + ".json";
     if (wantMock || id.indexOf("mock-") === 0) return rebase(await json(file));
     try { return await json("/api/callbook/book/" + encodeURIComponent(id)); } catch (e) { /* no API here */ }
@@ -67,8 +67,13 @@ window.Callbook = (function () {
   var isNum = function (x) { return typeof x === "number" && isFinite(x); };
   // A table lookup that never reaches Object.prototype ("constructor", "__proto__"…).
   var own = function (obj, k) { return Object.prototype.hasOwnProperty.call(obj, k) ? obj[k] : undefined; };
-  // A book's name, or "Book #N" when the server sends none (a book that isn't one we vouch for).
-  function nameOf(x) { return x && typeof x.name === "string" && x.name.trim() ? x.name : "Book #" + String(x && (x.id != null ? x.id : x.bookId)); }
+  // A record's name, or "Record #N" when the server sends none (a record that isn't one we vouch for).
+  // The server's own placeholder, "Book #N", reads the same way to users.
+  function nameOf(x) {
+    var n = x && typeof x.name === "string" ? x.name.trim() : "";
+    if (n && !/^Book #\d+$/.test(n)) return x.name;
+    return "Record #" + (n ? n.slice(6) : String(x && (x.id != null ? x.id : x.bookId)));
+  }
   // A person’s profile page: every record one address runs, in one place.
   var ADDR_RE = /^0x[0-9a-fA-F]{40}$/;
   function profileHref(owner) { return ADDR_RE.test(owner || "") ? "/arena/p/" + String(owner).toLowerCase() : null; }
@@ -80,7 +85,7 @@ window.Callbook = (function () {
   // A person’s avatar, drawn from their address (ui.js).
   function identicon(addr, size) { return U.identicon(addr, size); }
   function movedTag(x) {
-    return x && x.agentMoved ? '<span class="cb-tag" tabindex="0" data-tip="The ERC-8004 agent this book points to has changed hands since the book opened">Agent changed hands</span>' : "";
+    return x && x.agentMoved ? '<span class="cb-tag" tabindex="0" data-tip="This agent’s identity in the open registry on Arc (ERC-8004) has changed hands since its record began">Agent changed hands</span>' : "";
   }
   // Fractions in, percent out: 0.131 → "+13.1%".
   function pct(x, dp) { return isNum(x) ? U.pct(x * 100, dp === undefined ? 1 : dp) : "—"; }
@@ -159,7 +164,7 @@ window.Callbook = (function () {
   var sealN = 0;
   function seal(cls, words) {
     var id = "cb-ring-" + sealN++;
-    var text = (words || "SEALED ON ARC · ERC-8004 · CALLBOOK · ").repeat(2);
+    var text = (words || "RECORDED ON ARC · ARENA BY REINS · ").repeat(2);
     var ticks = "";
     for (var i = 0; i < 72; i++) {
       var a = (i / 72) * Math.PI * 2, r1 = 47, r2 = i % 6 === 0 ? 43.5 : 45.5;
@@ -245,7 +250,7 @@ window.Callbook = (function () {
   var MODE = { mock: "Sample data", replay: "Replay", live: "Live" };
   function modeBadge(d) {
     if (!d || d.mode === "live") return "";
-    var tip = d.mode === "mock" ? "Made-up books to show the page. No real agent sealed these calls." : "Replayed on a local chain over real past prices, not sealed live.";
+    var tip = d.mode === "mock" ? "Made-up records to show the page. No real agent made these predictions." : "Replayed on a local chain over real past prices, not recorded live.";
     return '<span class="cb-mode ' + esc(d.mode) + '" tabindex="0" data-tip="' + esc(tip) + '">' + esc(own(MODE, d.mode) || d.mode) + "</span>";
   }
 
@@ -262,7 +267,7 @@ window.Callbook = (function () {
     var calls = (m.revealed || 0) + (m.withheld || 0) + (m.unscorable || 0), days = Math.floor(m.days || 0), need = [];
     if (lv === "new") {
       if (days < RULES.newDays) need.push((RULES.newDays - days) + " more days");
-      if (calls < RULES.newCalls) need.push((RULES.newCalls - calls) + " more calls");
+      if (calls < RULES.newCalls) need.push((RULES.newCalls - calls) + " more predictions");
     } else if (lv === "building") need.push((RULES.fullDays - days) + " days to a full record");
     return RECORD[lv] + (need.length ? " · " + need.join(" and ") : "");
   }
@@ -289,19 +294,19 @@ window.Callbook = (function () {
     var formula = "100 × " + (hasCover ? "coverage × " : "") + "(0.6 × profit + 0.4 × beats " + vs + ") × (0.6 + 0.4 × drops). " +
       "Profit and beating " + vs + " get full marks when their t-statistic reaches 3.";
     return '<div class="cbk-parts"><p class="cbk-formula" tabindex="0" data-tip="' + esc(formula) + '"><b>How it’s built</b> ' +
-      "Mostly steady profit, partly beating " + esc(vs) + ", then cut by big drops" + (hasCover ? " and missed calls" : "") + ".</p><ul>" +
+      "Mostly steady profit, partly beating " + esc(vs) + ", then cut by big drops" + (hasCover ? " and missed predictions" : "") + ".</p><ul>" +
       row("Steady profit", p.profit,
         p.profit >= 1 ? "Full marks" : p.profit > 0 ? "Making money; steadier gains raise this" : losing ? "Not making money yet" : "Making money, but not steadily yet",
-        "60% of the score. Do its calls make money after fees, again and again? Full marks once the gains are clearly more than luck.") +
+        "60% of the score. Do its predictions make money after fees, again and again? Full marks once the gains are clearly more than luck.") +
       row("Beats " + vs, p.edge,
         p.edge >= 1 ? "Full marks" : p.edge > 0 ? "Ahead of " + vs + "; a clearer lead raises this" : "Not yet: no better than just holding",
-        "40% of the score. Does it do better than simply holding " + vs + " it called? Full marks once that's clearly more than luck.") +
+        "40% of the score. Does it do better than simply holding " + vs + " it picked? Full marks once that's clearly more than luck.") +
       row("Big drops", keep,
         dd > 0 ? "Worst drop −" + (Math.abs(dd) * 100).toFixed(1) + "%: keeps " + pct(keep) + " of the score" : "No drops yet: keeps the whole score",
         "Its worst fall from a high cuts the score by up to 40%. A 40% fall takes the full cut; a small one barely matters.") +
-      (hasCover ? row("Calls on time", p.coverage,
-        m.missed || m.withheld ? int(m.missed || 0) + " missed, " + int(m.withheld || 0) + " kept hidden: keeps " + pct(p.coverage) : "Every call due was revealed",
-        "A missed round or a call kept hidden lowers the score in proportion.") : "") +
+      (hasCover ? row("Predictions on time", p.coverage,
+        m.missed || m.withheld ? int(m.missed || 0) + " missed, " + int(m.withheld || 0) + " kept hidden: keeps " + pct(p.coverage) : "Every prediction due was revealed",
+        "A missed prediction, or one kept hidden, lowers the score in proportion.") : "") +
       "</ul>" + (levelLine(b) ? '<p class="cbk-level">' + esc(levelLine(b)) + "</p>" : "") +
       (next ? '<p class="cbk-zero"><b>What’s next.</b> ' + esc(next) + "</p>" : "") + "</div>";
   }
@@ -318,19 +323,19 @@ window.Callbook = (function () {
     var lost = isNum(m.totalReturn) && m.totalReturn <= 0;
     if (!(p.profit > 0)) {
       bits.push(lost ? "no profit yet" : "profit not steady yet");
-      long.push("Profit is 0: " + (lost ? "after fees and funding its calls haven’t made money." : "its gains aren’t steady enough yet (t = " + num(p.profitT) + "; full credit at " + RULES.fullT + ")."));
-      next.push("calls that make money after costs");
+      long.push("Profit is 0: " + (lost ? "after fees and funding its predictions haven’t made money." : "its gains aren’t steady enough yet (t = " + num(p.profitT) + "; full credit at " + RULES.fullT + ")."));
+      next.push("predictions that make money after costs");
     }
     if (p.edge <= 0) {
       bits.push("not beating the market");
-      long.push("Edge is 0: its calls don’t beat the market’s own move (t = " + num(p.tStat) + "; full credit at " + RULES.fullT + "), so it can’t pass 60.");
-      next.push("calls that beat the market");
+      long.push("Edge is 0: its predictions don’t beat the market’s own move (t = " + num(p.tStat) + "; full credit at " + RULES.fullT + "), so it can’t pass 60.");
+      next.push("predictions that beat the market");
     }
     if (isNum(p.risk) && p.risk < 1 && isNum(m.maxDrawdown) && m.maxDrawdown > 0) {
       long.push("Its worst drop was " + dd(m.maxDrawdown) + ", so it keeps " + Math.round(100 * (RULES.riskFloor + (1 - RULES.riskFloor) * p.risk)) + "% of what it earned (60% past a 40% drop).");
       if (m.maxDrawdown >= RULES.maxDrawdown) next.push("a drawdown back under 40%");
     }
-    if (isNum(p.coverage) && p.coverage < 1) long.push("Coverage is " + num(p.coverage) + ": missed and hidden calls cost it.");
+    if (isNum(p.coverage) && p.coverage < 1) long.push("Coverage is " + num(p.coverage) + ": missed and hidden predictions cost it.");
     var lvl = levelLine(b);
     if (lvl) long.push(lvl + ".");
     var nextText = next.length ? "To rise it needs " + next.join(", ").replace(/, ([^,]*)$/, " and $1") + "." : "";
@@ -353,10 +358,10 @@ window.Callbook = (function () {
   function where(d) {
     var mode = d && d.mode;
     if (mode === "live") return { status: "Live on Arc", chain: "On Arc", live: true,
-      tip: "Calls are locked and revealed on Arc, and scores are published to Arc’s ERC-8004 Validation Registry." };
+      tip: "Predictions are recorded and revealed on Arc, and scores are published to an open registry on Arc (ERC-8004)." };
     if (mode === "replay") return { status: "Replay over real prices", chain: "On chain", live: false,
       tip: d.note || "Replayed on a local chain over real Hyperliquid prices." };
-    return { status: "Sample data", chain: "On chain", live: false, tip: "Sample books that show how the page works. No bot made these calls." };
+    return { status: "Sample data", chain: "On chain", live: false, tip: "Sample records that show how the page works. No agent made these predictions." };
   }
   // One calm pill saying where the data comes from; the detail is in its tooltip.
   function statusPill(d) {
@@ -364,7 +369,7 @@ window.Callbook = (function () {
     return '<span class="cb-status' + (w.live ? " live" : "") + '" tabindex="0" data-tip="' + esc(w.tip) + '"><i aria-hidden="true"></i>' + esc(w.status) +
       '<span class="sr-only">: ' + esc(w.tip) + "</span></span>";
   }
-  var SEAL_WORDS = "ARENA · ERC-8004 · VALIDATED · ";
+  var SEAL_WORDS = "RECORDED ON ARC · ARENA BY REINS · ";
   var COSTS = { "hyperliquid-funding": "fees and real hourly Hyperliquid funding", "vanta-flat-carry": "fees and Vanta’s flat carry" };
   function costsText(c) { return own(COSTS, c) || (c ? String(c) : "fees"); }
 
@@ -406,12 +411,12 @@ window.Callbook = (function () {
   var LEVEL_RANK = { unrated: 1, provisional: 2, rated: 3, established: 4 };
   function skillRank(s) { return s ? LEVEL_RANK[s.level] * 1000 + (isNum(s.score) ? s.score : -1) : null; }
   function skillTip(s) {
-    if (!s || !s.calls) return "No calls scored yet";
-    var right = isNum(s.hitRate) ? Math.round(s.hitRate * 100) + "% of calls beat the market’s own move" : "";
+    if (!s || !s.calls) return "No predictions scored yet";
+    var right = isNum(s.hitRate) ? Math.round(s.hitRate * 100) + "% of predictions beat the market’s own move" : "";
     var range = s.range ? " (somewhere between " + Math.round(s.range[0] * 100) + "% and " + Math.round(s.range[1] * 100) + "%)" : "";
-    var basis = " over " + int(Math.floor(s.effective)) + " independent calls (calls that overlap in time share one vote).";
+    var basis = " over " + int(Math.floor(s.effective)) + " independent predictions (ones that overlap in time share one vote).";
     var next = s.next ? s.next.days ? " Established after " + s.next.days + " days of record." :
-      " " + own(LEVELS, s.next.level) + " at " + int(s.next.calls) + " independent calls over " + (s.next.spanHours >= 48 ? Math.round(s.next.spanHours / 24) + " days" : s.next.spanHours + " hours") + "." : "";
+      " " + own(LEVELS, s.next.level) + " at " + int(s.next.calls) + " independent predictions over " + (s.next.spanHours >= 48 ? Math.round(s.next.spanHours / 24) + " days" : s.next.spanHours + " hours") + "." : "";
     return right + range + basis + (isNum(s.score) ? " The score is the cautious end of that range: 50% right is 0, 65% is 100." : "") + next;
   }
   /** The skill score as a panel for a bot's or caller's page: score or progress, level, and what it means. */
@@ -420,7 +425,7 @@ window.Callbook = (function () {
     var goal = s.next && s.next.calls ? s.next.calls : null;
     var f = goal ? Math.min(1, s.effective / goal) : 1;
     var head = s.level === "unrated"
-      ? '<b class="mono">' + int(Math.floor(s.effective)) + '</b><span class="of"> of ' + int(goal || 150) + " calls</span>"
+      ? '<b class="mono">—</b><span class="of"> unrated · ' + int(Math.floor(s.effective)) + " of " + int(goal || 150) + " predictions so far</span>"
       : '<b class="mono">' + esc(s.score) + '</b><span class="of">/100</span>';
     return '<section class="cbk-skillbox" aria-label="Skill score"><p class="cbk-skill-k">Skill score <span class="cb-skill ' + esc(s.level) + '"><span class="cb-skill-l">' +
       esc(own(LEVELS, s.level)) + "</span></span></p><div class='cbk-skill-v'>" + head + "</div>" +

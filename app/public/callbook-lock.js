@@ -1,4 +1,5 @@
-/* Lock a call from the Arena tab: coin, long or short, how long, and
+/* Make a prediction from the Arena page ("Try it yourself"): coin, long or
+ * short, how long, and
  * optionally a stop and a target price, sealed in the salt
  * (app/verify/callbook-exits.js). A call with them is revealed only from the
  * browser that kept it: its prices can't be searched for.
@@ -19,7 +20,10 @@
  * horizon is on chain in the clear).
  *
  * Outside live mode (a replay, sample data) the form is a preview: nothing is
- * signed or sent. */
+ * signed or sent.
+ *
+ * Visible words follow docs/ARENA-MESSAGING.md ("prediction", "Add to my
+ * record"); the contract and code keep their own names (lock, call). */
 (function () {
   "use strict";
   var U = window.ReinsUI, C = window.Callbook, K = window.CallbookCrypto, esc = U.esc;
@@ -174,7 +178,7 @@
   function busy(on, label) {
     st.busy = on;
     $("lock-btn").disabled = on;
-    $("lock-btn").textContent = on ? label || "Working…" : "Lock call to my record";
+    $("lock-btn").textContent = on ? label || "Working…" : "Add to my record";
   }
 
   // ------------------------------------------------------------- storage
@@ -230,10 +234,10 @@
     try { out = await res.json(); } catch (e) { /* not json */ }
     return { status: res.status, ok: res.ok, body: out || {} };
   }
-  var NOT_LIVE = "Locking opens when Arena is live on Arc. This is a preview: nothing was signed or sent.";
+  var NOT_LIVE = "Predictions open when Arena is live on Arc. This is a preview: nothing was signed or sent.";
   function explain(err) {
-    if (err && err.code === 4001) return "You declined in your wallet, so nothing was locked.";
-    return esc((err && (err.shortMessage || err.message)) || "Something went wrong. Nothing was locked.");
+    if (err && err.code === 4001) return "You declined in your wallet, so nothing was recorded.";
+    return esc((err && (err.shortMessage || err.message)) || "Something went wrong. Nothing was recorded.");
   }
 
   // ------------------------------------------------------------- lock
@@ -244,8 +248,8 @@
     if (!D || D.mode !== "live") return say(NOT_LIVE, "calm");
     // Locking signs with a browser wallet; a Google account (a Circle wallet) covers your profile and linking, not this yet.
     var who = window.ReinsAuth && window.ReinsAuth.session && window.ReinsAuth.session();
-    if (who && who.kind === "google") return say("Locking a call needs a browser wallet, such as MetaMask or Rabby, for now. Your Google sign-in covers your profile and linking an agent.", "calm");
-    if (!eth()) return say("To lock a call you need a browser wallet, such as MetaMask or Rabby.", "calm");
+    if (who && who.kind === "google") return say("Making a prediction needs a browser wallet, such as MetaMask or Rabby, for now. Your Google sign-in covers your profile and linking an agent.", "calm");
+    if (!eth()) return say("To make a prediction you need a browser wallet, such as MetaMask or Rabby.", "calm");
     var call = { coin: st.coin, side: st.side, horizon: st.horizon };
     var exits = x.stop || x.target ? { stop: x.stop && K.sealedPrice(x.stop), target: x.target && K.sealedPrice(x.target) } : null;
     try {
@@ -255,28 +259,28 @@
       await onChain();
       var nonce = await view("nonces", [account]);
       busy(true, "Sign 1 of 2…");
-      say("Sign the first message to make the secret that hides your call. It’s free and sends nothing.");
+      say("Sign the first message to make the secret that hides your prediction. It’s free and sends nothing.");
       // The stop and target ride in the salt: fixed now, hidden until the reveal.
       var salt = exits ? K.withExits(await saltFor(account, nonce), exits) : await saltFor(account, nonce);
       var lockReq = K.buildLock({ chainId: D.chainId, callbook: D.contract, account: account, nonce: nonce, coin: call.coin, side: call.side, horizon: call.horizon, salt: salt,
         deadline: Math.floor(Date.now() / 1000) + 600 });
       busy(true, "Sign 2 of 2…");
-      say("Now approve the lock. Reins sends it and pays the gas.");
+      say("Now approve it. Reins sends it and pays the gas.");
       var signature = await req("eth_signTypedData_v4", [account, JSON.stringify(lockReq.typedData)]);
-      busy(true, "Locking…");
-      say("Locking your call…");
+      busy(true, "Adding…");
+      say("Recording your prediction…");
       var r = await post("/api/callbook/relay/lock", Object.assign({}, lockReq.body, { signature: signature }));
-      if (r.status === 503) return say(NOT_LIVE.replace(" This is a preview: nothing was signed or sent.", " Nothing was locked."), "calm");
-      if (!r.ok) return say("Couldn’t lock that call: " + esc(r.body.error || "the relay said no") + ". Nothing was locked.", "bad");
+      if (r.status === 503) return say(NOT_LIVE.replace(" This is a preview: nothing was signed or sent.", " Nothing was recorded."), "calm");
+      if (!r.ok) return say("Couldn’t record that prediction: " + esc(r.body.error || "the relay said no") + ". Nothing was recorded.", "bad");
       var e = Number(r.body.entryAt) || entryAt();
       remember({ chainId: Number(D.chainId), callbook: String(D.contract).toLowerCase(), account: account, bookId: String(r.body.bookId), callId: Number(r.body.callId),
         nonce: Number(r.body.nonce != null ? r.body.nonce : nonce), coin: call.coin, side: call.side, horizon: call.horizon, salt: salt, entryAt: e, lockedAt: Math.floor(Date.now() / 1000), revealed: false,
         exits: exits });
       var href = "/arena-caller?c=" + encodeURIComponent(r.body.bookId);
       var levels = exits ? [exits.stop ? "stop " + exits.stop : "", exits.target ? "target " + exits.target : ""].filter(Boolean).join(", ") : "";
-      say("<b>Locked ✓</b> " + esc(call.coin) + " " + (call.side > 0 ? "long" : "short") + (levels ? " with " + esc(levels) : "") +
+      say("<b>Recorded ✓</b> " + esc(call.coin) + " " + (call.side > 0 ? "long" : "short") + (levels ? " with " + esc(levels) : "") +
         ", reveals " + esc(utc(e + call.horizon, call.horizon >= 86400)) + '. <a href="' + esc(href) + '">See your record →</a>' +
-        (exits ? "<br><small>Note its stop and target: this browser keeps them to reveal it. On another device, type them in above and use “Reveal calls locked on another device”.</small>" : ""), "ok");
+        (exits ? "<br><small>Note its stop and target: this browser keeps them to reveal it. On another device, type them in above and use “Reveal predictions made on another device”.</small>" : ""), "ok");
       showMine();
       schedule();
     } catch (err) {
@@ -296,7 +300,7 @@
     var list = locks().filter(function (l) { return here(l) && due(l); });
     if (!list.length) return schedule();
     revealing = true;
-    toast("Revealing " + list.length + (list.length === 1 ? " call…" : " calls…"), true);
+    toast("Revealing " + list.length + (list.length === 1 ? " prediction…" : " predictions…"), true);
     var done = 0;
     try {
       for (var i = 0; i < list.length; i++) {
@@ -315,7 +319,7 @@
     } finally {
       revealing = false;
     }
-    toast(done ? "Revealed " + done + (done === 1 ? " call ✓" : " calls ✓") : list.length ? "Couldn’t reveal yet. This page tries again on your next visit." : "");
+    toast(done ? "Revealed " + done + (done === 1 ? " prediction ✓" : " predictions ✓") : list.length ? "Couldn’t reveal yet. This page tries again on your next visit." : "");
     schedule();
   }
   // While the page stays open, reveal the next call when it matures.
@@ -329,24 +333,24 @@
   // Recover calls this browser forgot: sign each salt again, then search.
   async function recover() {
     if (!D || D.mode !== "live") return say(NOT_LIVE, "calm");
-    if (!eth()) return say("Connect the wallet that locked the calls. You need a browser wallet for that.", "calm");
+    if (!eth()) return say("Connect the wallet that made the predictions. You need a browser wallet for that.", "calm");
     try {
       busy(true, "Looking…");
       var account = String((await req("eth_requestAccounts"))[0] || "").toLowerCase();
       await onChain();
       var bookId = await view("defaultBookOf", [account]);
-      if (!bookId) return say("This wallet hasn’t locked any calls yet.", "calm");
+      if (!bookId) return say("This wallet hasn’t made any predictions yet.", "calm");
       var caller = await C.loadCaller(String(bookId));
       var known = locks().filter(here).map(function (l) { return l.bookId + ":" + l.callId; });
       var open = (caller.calls || []).filter(function (c) { return c.status === "pending" && known.indexOf(String(bookId) + ":" + c.callId) < 0; });
-      if (!open.length) return say("Nothing to recover: every hidden call of this wallet is already known here.", "calm");
+      if (!open.length) return say("Nothing to recover: every hidden prediction of this wallet is already known here.", "calm");
       var found = 0, coins = st.markets.map(function (m) { return m.name; });
       var x = exitsIn(), typed = null;
       try { typed = x.stop || x.target ? { stop: x.stop && K.sealedPrice(x.stop), target: x.target && K.sealedPrice(x.target) } : null; } catch (e) { /* not prices: tried without */ }
       for (var i = 0; i < open.length; i++) {
         var lk = await view("lockedOf", [bookId, open[i].callId]);
         if (lk.revealed) continue;
-        say("Sign to recreate the secret for call " + (i + 1) + " of " + open.length + ". It’s free and sends nothing.");
+        say("Sign to recreate the secret for prediction " + (i + 1) + " of " + open.length + ". It’s free and sends nothing.");
         var salt = await saltFor(account, lk.nonce);
         var known = Number(open[i].horizon) || Number(lk.horizon) || 0;
         var find = function (s) { return K.recoverSymbolCall({ hash: lk.callHash, callbook: D.contract, chainId: D.chainId, account: account, nonce: lk.nonce, salt: s, coins: coins, horizons: known ? [known] : HORIZONS }); };
@@ -358,8 +362,8 @@
         remember({ chainId: Number(D.chainId), callbook: String(D.contract).toLowerCase(), account: account, bookId: String(bookId), callId: Number(open[i].callId),
           nonce: lk.nonce, coin: hit.coin, side: hit.side, horizon: hit.horizon, salt: salt, entryAt: lk.entryAt, revealed: false });
       }
-      say(found ? "Found " + found + (found === 1 ? " call" : " calls") + ". Any that are due are being revealed now." :
-        "None of the hidden calls matched this wallet’s secret. A call with a stop or target needs them typed in above first; otherwise it was locked another way (for example by an agent with its own key).", found ? "ok" : "calm");
+      say(found ? "Found " + found + (found === 1 ? " prediction" : " predictions") + ". Any that are due are being revealed now." :
+        "None of the hidden predictions matched this wallet’s secret. One with a stop or target needs them typed in above first; otherwise it was made another way (for example by an agent with its own key).", found ? "ok" : "calm");
       showMine();
       revealDue();
     } catch (err) {

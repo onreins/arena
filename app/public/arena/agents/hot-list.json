@@ -1,12 +1,12 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "Arena: Hot list",
-  "description": "Goes long the top coin on the Charts hot list (trend, flow and risk over the last day), or stays flat when no coin qualifies. A Reins agent on Arena: it seals one call every 4h on Arc before the period starts, reveals it after the horizon, and asks the Reins validator to score its record on the ERC-8004 Validation Registry (arena-v1).",
+  "description": "Goes long the top coin on the Charts hot list (trend, flow and risk over the last day), or stays flat when no coin qualifies. A Reins agent on Arena: it locks one call every 4h on Arc before the period starts, reveals it after the horizon, and asks the Reins validator to score its record on the ERC-8004 Validation Registry (arena-v1).",
   "image": "https://app.reins.one/favicon.svg",
   "services": [
     {
       "name": "web",
-      "endpoint": "https://app.reins.one/arena"
+      "endpoint": "https://app.reins.one/arena-bot?b=1"
     },
     {
       "name": "MCP",
@@ -16,13 +16,18 @@
   ],
   "x402Support": false,
   "active": true,
-  "registrations": [],
+  "registrations": [
+    {
+      "agentId": 897176,
+      "agentRegistry": "eip155:5042002:0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    }
+  ],
   "supportedTrust": [
     "validation"
   ],
   "callbook": {
     "strategy": "reins/arena/hot-list/v1",
-    "strategyHash": "0x4fd45a7f0149a373759ea5178b19c4d16249cc827d24d69cbfe305f50d24db53",
+    "strategyHash": "0xa795f93c067f2414fb6c856fee29a81d2d9cb4544300566594fde4fdf9f20b86",
     "coins": [
       "BTC",
       "ETH",
@@ -40,6 +45,16 @@
     "periodSec": 14400,
     "horizonSec": 14400,
     "scoring": "arena-v1",
-    "books": []
+    "books": [
+      {
+        "chainId": 5042002,
+        "callbook": "0x04371E9D8E7beCaCE9c28bF879feCEE401E8Ad5f",
+        "bookId": 1,
+        "agentId": 897176,
+        "requestHash": "0xf0843c75fbdb05f56e59a20b05aaeef08acf22c57f5e27586802bd6de10bb8aa",
+        "validator": "0xcB0DE8d0040e2f721482c0a8b35333298F64EB37",
+        "page": "https://app.reins.one/arena-bot?b=1"
+      }
+    ]
   }
 }

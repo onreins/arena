@@ -1585,6 +1585,101 @@ describe("profiles", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Agents linked to a wallet
+// ---------------------------------------------------------------------------
+
+const LINK_TYPES = {
+  LinkAgent: [
+    { name: "agent", type: "address" }, { name: "wallet", type: "address" },
+    { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" },
+  ],
+};
+const UNLINK_TYPES = { UnlinkAgent: [{ name: "agent", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+
+/** Both halves of a link: the agent's signature and the wallet's, over the same message. */
+async function signLink(callbook, { agent = user, wallet = stranger, agentSigner, walletSigner, deadline, domain } = {}) {
+  const nonce = await read(callbook, "linkNonces", [agent.account.address]);
+  const dl = deadline ?? (await latest()) + HOUR;
+  const message = { agent: agent.account.address, wallet: wallet.account.address, nonce, deadline: dl };
+  const sign = (w) => w.signTypedData({ account: w.account, domain: domain ?? domainOf(callbook), types: LINK_TYPES, primaryType: "LinkAgent", message });
+  return { ...message, agentSig: await sign(agentSigner ?? agent), walletSig: await sign(walletSigner ?? wallet) };
+}
+const linkArgs = (l) => [l.agent, l.wallet, l.deadline, l.agentSig, l.walletSig];
+const eventNames = (receipt, callbook) => eventsOf(receipt, callbook).map((e) => e.eventName);
+
+describe("linked agents", () => {
+  test("the typehashes match what clients sign", async () => {
+    const callbook = await deploy("Callbook", [identity]);
+    assert.equal(await read(callbook, "LINK_TYPEHASH"), keccak256(toHex("LinkAgent(address agent,address wallet,uint256 nonce,uint256 deadline)")));
+    assert.equal(await read(callbook, "UNLINK_TYPEHASH"), keccak256(toHex("UnlinkAgent(address agent,uint256 nonce,uint256 deadline)")));
+  });
+
+  test("an agent and a wallet link with both signatures; a relayer pays", async () => {
+    const callbook = await deploy("Callbook", [identity]);
+    const before = [await publicClient.getBalance({ address: USER }), await publicClient.getBalance({ address: STRANGER })];
+    const r = await send(relayer, callbook, CALLBOOK.abi, "linkBySig", linkArgs(await signLink(callbook)));
+    gasUsed.link = r.gasUsed;
+    assert.deepEqual(eventsOf(r, callbook), [{ eventName: "AgentLinked", args: { wallet: STRANGER, agent: USER } }]);
+    assert.equal(await read(callbook, "walletOf", [USER]), STRANGER);
+    assert.equal(await read(callbook, "linkNonces", [USER]), 1n);
+    assert.deepEqual([await publicClient.getBalance({ address: USER }), await publicClient.getBalance({ address: STRANGER })], before);
+  });
+
+  test("neither side can link alone, and signatures can't be replayed, used late or re-aimed", async () => {
+    const callbook = await deploy("Callbook", [identity]);
+    const submit = (l) => tx(relayer, callbook, "linkBySig", linkArgs(l));
+    // The wallet's half forged by the agent, and the agent's half forged by the wallet.
+    await expectRevert(submit(await signLink(callbook, { walletSigner: user })), "BadSignature");
+    await expectRevert(submit(await signLink(callbook, { agentSigner: stranger })), "BadSignature");
+    // Halves swapped onto another wallet: the message names the wallet.
+    const good = await signLink(callbook);
+    await expectRevert(submit({ ...good, wallet: OWNER }), "BadSignature");
+    await expectRevert(submit({ ...good, agentSig: malleate(good.agentSig) }), "BadSignature");
+    await expectRevert(submit(await signLink(callbook, { deadline: (await latest()) - 1n })), "SignatureExpired");
+    const other = await deploy("Callbook", [identity]);
+    await expectRevert(submit(await signLink(callbook, { domain: domainOf(other) })), "BadSignature");
+    await expectRevert(submit(await signLink(callbook, { wallet: user })), "SelfLink");
+    await submit(good);
+    await expectRevert(submit(good), "BadSignature"); // the nonce moved on
+  });
+
+  test("linking again moves the agent to the new wallet; either side unlinks", async () => {
+    const callbook = await deploy("Callbook", [identity]);
+    await send(relayer, callbook, CALLBOOK.abi, "linkBySig", linkArgs(await signLink(callbook)));
+    const moved = await send(relayer, callbook, CALLBOOK.abi, "linkBySig", linkArgs(await signLink(callbook, { wallet: owner })));
+    assert.deepEqual(eventNames(moved, callbook), ["AgentUnlinked", "AgentLinked"]);
+    assert.equal(await read(callbook, "walletOf", [USER]), OWNER);
+
+    await expectRevert(tx(stranger, callbook, "unlink", [USER]), "NotLinkParty"); // the old wallet no longer can
+    const byWallet = await send(owner, callbook, CALLBOOK.abi, "unlink", [USER]);
+    assert.deepEqual(eventsOf(byWallet, callbook), [{ eventName: "AgentUnlinked", args: { wallet: OWNER, agent: USER } }]);
+    assert.equal(await read(callbook, "walletOf", [USER]), ZERO);
+    await expectRevert(tx(user, callbook, "unlink", [USER]), "NotLinked");
+
+    await send(relayer, callbook, CALLBOOK.abi, "linkBySig", linkArgs(await signLink(callbook)));
+    await send(user, callbook, CALLBOOK.abi, "unlink", [USER]); // and the agent
+    assert.equal(await read(callbook, "walletOf", [USER]), ZERO);
+  });
+
+  test("unlinking by signature: the agent or its wallet, once", async () => {
+    const callbook = await deploy("Callbook", [identity]);
+    await send(relayer, callbook, CALLBOOK.abi, "linkBySig", linkArgs(await signLink(callbook)));
+    const signUnlink = async (signer) => {
+      const nonce = await read(callbook, "linkNonces", [USER]);
+      const deadline = (await latest()) + HOUR;
+      const sig = await signer.signTypedData({ account: signer.account, domain: domainOf(callbook), types: UNLINK_TYPES, primaryType: "UnlinkAgent", message: { agent: USER, nonce, deadline } });
+      return [USER, signer.account.address, deadline, sig];
+    };
+    await expectRevert(tx(relayer, callbook, "unlinkBySig", await signUnlink(owner)), "NotLinkParty");
+    const args = await signUnlink(stranger);
+    await expectRevert(tx(relayer, callbook, "unlinkBySig", [args[0], USER, args[2], args[3]]), "BadSignature"); // the wallet's signature claimed as the agent's
+    await send(relayer, callbook, CALLBOOK.abi, "unlinkBySig", args);
+    assert.equal(await read(callbook, "walletOf", [USER]), ZERO);
+    await expectRevert(tx(relayer, callbook, "unlinkBySig", args), "NotLinked");
+  });
+});
+
 test("gas on the local node", (t) => {
   assert.ok(gasUsed.open && gasUsed.seal && gasUsed.reveal);
   t.diagnostic(`open (3 coins) ${gasUsed.open} · seal ${gasUsed.seal} · reveal ${gasUsed.reveal}`);

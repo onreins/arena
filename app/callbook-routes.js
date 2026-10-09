@@ -12,6 +12,9 @@
  *   POST /api/callbook/relay/seal   gasless seal: { bookId, p, callHash, deadline, signature }
  *   POST /api/callbook/relay/reveal any reveal, with its preimage
  *   POST /api/callbook/relay/profile gasless profile: { account, bookId, name, bio, link, deadline, signature }
+ *   POST /api/callbook/relay/link   link an agent to a wallet: { agent, wallet, deadline, agentSig, walletSig }
+ *   POST /api/callbook/relay/unlink { agent, signer, deadline, signature } (signer: the agent or its wallet)
+ *   POST /api/callbook/relay/link-check  check a link request's agent half; sends nothing
  *   (the relay routes answer 503 unless CALLBOOK_RELAYER_KEY is set; see app/verify/callbook-relay.js)
  *
  * Read from the network in CALLBOOK_NETWORK (see app/verify/callbook-network.js),
@@ -42,11 +45,22 @@ const TTL_MS = 60_000;
 const ID_RE = /^\d{1,12}$/;
 const REPORT_CACHE = 200;
 const REPORTS_PER_MINUTE = 30;
+const LINK_READ_TTL_MS = 5_000;
+const linkReads = new Map(); // agent -> { at, body }: GET /api/callbook/link/:agent, briefly
 const VIEWS = parseAbi([
   "function identityRegistry() view returns (address)",
   "function ownerOf(uint256 agentId) view returns (address)",
   "function tokenURI(uint256 agentId) view returns (string)",
+  "function walletOf(address agent) view returns (address)",
+  "function linkNonces(address agent) view returns (uint256)",
 ]);
+
+/**
+ * The board and each record: browsers keep them 30s, and Vercel's CDN (which
+ * only reads s-maxage) serves them for 30s and a minute more while it fetches
+ * the next, so a crowd of visitors costs one rebuild, not one each.
+ */
+const CACHE_INDEX = "public, max-age=30, s-maxage=30, stale-while-revalidate=60";
 
 export function mountCallbook(app, { env: rawEnv = process.env, source, now = () => Math.floor(Date.now() / 1000) } = {}) {
   const env = arenaEnv(rawEnv); // ARENA_X settings are read as CALLBOOK_X
@@ -137,12 +151,35 @@ export function mountCallbook(app, { env: rawEnv = process.env, source, now = ()
     res.status(502).json({ error: "couldn't read Callbook right now" });
   };
 
+  /** GET /api/callbook/link/:agent -> { agent, wallet (or null), nonce }: what an unlink or link signs against. */
+  app.get("/api/callbook/link/:agent", async (req, res) => {
+    if (!net) return res.status(404).json({ error: "Arena isn't configured on this server" });
+    if (!/^0x[0-9a-fA-F]{40}$/.test(req.params.agent)) return res.status(400).json({ error: "that isn't an address" });
+    try {
+      // Each answer costs two RPC reads: limited per client, and kept a few seconds.
+      if ((await counter.hit(`link-read:${ipBucket(req.ip)}`, 60)) > REPORTS_PER_MINUTE) return res.status(429).json({ error: "too many requests; try again in a minute" });
+      const key = req.params.agent.toLowerCase(), hit = linkReads.get(key);
+      if (hit && Date.now() - hit.at < LINK_READ_TTL_MS) return res.set("cache-control", "no-store").json(hit.body);
+      client ??= clientFor(net);
+      const [wallet, nonce] = await Promise.all([
+        client.readContract({ address: net.address, abi: VIEWS, functionName: "walletOf", args: [req.params.agent] }),
+        client.readContract({ address: net.address, abi: VIEWS, functionName: "linkNonces", args: [req.params.agent] }),
+      ]);
+      const body = { agent: key, wallet: /^0x0{40}$/.test(wallet) ? null : wallet.toLowerCase(), nonce: String(nonce) };
+      if (linkReads.size > 1_000) linkReads.clear();
+      linkReads.set(key, { at: Date.now(), body });
+      res.set("cache-control", "no-store").json(body);
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // With no network configured, the routes point at the static export, so a
   // page loads it without an error in the browser's console.
   app.get("/api/callbook", async (_req, res) => {
     if (!net) return setupError ? off(res) : res.redirect(302, "/data/callbook.json");
     try {
-      res.set("cache-control", "public, max-age=30").json((await current()).index);
+      res.set("cache-control", CACHE_INDEX).json((await current()).index);
     } catch (err) {
       fail(res, err);
     }
@@ -154,7 +191,7 @@ export function mountCallbook(app, { env: rawEnv = process.env, source, now = ()
     try {
       const found = pick(await current()).get(String(Number(req.params.id)));
       if (!found) return res.status(404).json({ error: `no such ${kind}` });
-      res.set("cache-control", "public, max-age=30").json(found);
+      res.set("cache-control", CACHE_INDEX).json(found);
     } catch (err) {
       fail(res, err);
     }
@@ -208,14 +245,72 @@ export function mountCallbook(app, { env: rawEnv = process.env, source, now = ()
     });
     return relayer;
   };
-  for (const action of ["lock", "seal", "reveal", "profile"]) {
+  // ---------------------------------------------------------------- health
+  /**
+   * GET /api/callbook/health -> { ok, problems: [sentences], network, relayer, validator, chain }:
+   * what an outside check (.github/workflows/health.yml) watches. Problems: Arena or the relayer
+   * off, the relayer's or validator's wallet under its minimum (ARENA_RELAYER_MIN_USDC, default 1;
+   * ARENA_VALIDATOR_MIN_USDC, default 0.5), no validator set, or the chain unreachable.
+   * Answered from memory for 30s; never starts a full chain read.
+   */
+  let health = null, healthing = null;
+  const usdc = (wei) => Number(wei) / 1e18;
+  // Public chain facts only (addresses and balances anyone can read), so the CDN may keep it 30s too.
+  app.get("/api/callbook/health", async (_req, res) => {
+    if (!health || Date.now() - health.at >= 30_000) {
+      healthing ??= checkHealth().then((body) => { health = { at: Date.now(), body }; }).finally(() => { healthing = null; });
+      await healthing;
+    }
+    res.set("cache-control", "public, max-age=30, s-maxage=30").json(health.body);
+  });
+  /** One health check at a time: concurrent requests share it. */
+  async function checkHealth() {
+    const problems = [];
+    const body = { ok: false, problems, network: net?.name ?? null, contract: net?.address ?? null };
+    if (!net) problems.push(setupError ?? "Arena isn't configured on this server");
+    else {
+      try {
+        client ??= clientFor(net);
+        const head = await client.getBlockNumber();
+        // Reads follow visits, so a lag is information, not a fault.
+        body.chain = { head: String(head), readTo: chainState ? String(chainState.toBlock) : null, lagBlocks: chainState ? Number(head - chainState.toBlock) : null };
+        const minRelay = Number(env.CALLBOOK_RELAYER_MIN_USDC ?? 1);
+        if (relayOff) {
+          body.relayer = { on: false };
+          problems.push(relayOff);
+        } else {
+          const address = privateKeyToAccount(env.CALLBOOK_RELAYER_KEY).address;
+          const balance = usdc(await client.getBalance({ address }));
+          body.relayer = { on: true, address, balanceUsdc: Math.round(balance * 1e4) / 1e4, minUsdc: minRelay };
+          if (balance < minRelay) problems.push(`the relayer ${address} has ${balance.toFixed(4)} USDC, under ${minRelay}: fund it or gasless locks stop`);
+        }
+        const minValidator = Number(env.CALLBOOK_VALIDATOR_MIN_USDC ?? 0.5);
+        if (!net.validator) {
+          body.validator = null;
+          problems.push(net.validationOff ?? "no validator is set, so no published score is shown");
+        } else {
+          const balance = usdc(await client.getBalance({ address: net.validator }));
+          body.validator = { address: net.validator, balanceUsdc: Math.round(balance * 1e4) / 1e4, minUsdc: minValidator };
+          if (balance < minValidator) problems.push(`the validator ${net.validator} has ${balance.toFixed(4)} USDC, under ${minValidator}: fund it or daily scores stop`);
+        }
+      } catch (err) {
+        problems.push(`the chain couldn't be read: ${brief(err)}`);
+      }
+    }
+    body.ok = problems.length === 0;
+    return body;
+  }
+
+  // Route name -> relayer function. link-check sends nothing: it checks a link request's agent half.
+  const RELAY = { lock: "lock", seal: "seal", reveal: "reveal", profile: "profile", link: "link", unlink: "unlink", "link-check": "linkCheck" };
+  for (const [action, fn] of Object.entries(RELAY)) {
     app.post(`/api/callbook/relay/${action}`, async (req, res) => {
       if (relayOff) return res.status(503).json({ error: relayOff });
       try {
         const r = await getRelayer();
-        res.json(await r[action](req.body ?? {}, { ip: req.ip }));
-        // The next read shows the new call. A name waits for the next minute's rebuild: it's cheap to send, so it's no reason to rebuild.
-        if (action !== "profile") cache = null;
+        res.json(await r[fn](req.body ?? {}, { ip: req.ip }));
+        // The next read shows a new call or link. A name waits for the next minute's rebuild: it's cheap to send, so it's no reason to rebuild.
+        if (action !== "profile" && action !== "link-check") cache = null;
       } catch (err) {
         if (err instanceof RelayError) return res.status(err.status).json({ error: err.message, ...err.extra });
         log(`relay ${action}: ${brief(err)}`);

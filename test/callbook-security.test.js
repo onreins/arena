@@ -114,11 +114,14 @@ describe("H1/H4: which books are ours", () => {
 describe("H5/M6: network config", () => {
   const ADDR = "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0";
   test("off local, a missing or invalid validator turns validations off", () => {
-    const net = callbookNetwork({ CALLBOOK_NETWORK: "testnet", CALLBOOK_ADDRESS: ADDR, CALLBOOK_FROM_BLOCK: "100" });
+    // Mainnet has no deployment record yet, so nothing names a validator there (testnet's record does).
+    const net = callbookNetwork({ CALLBOOK_NETWORK: "mainnet", CALLBOOK_ADDRESS: ADDR, CALLBOOK_FROM_BLOCK: "100" });
     assert.equal(net.registry, null);
     assert.match(net.validationOff, /ARENA_VALIDATOR/);
-    const bad = callbookNetwork({ CALLBOOK_NETWORK: "testnet", CALLBOOK_ADDRESS: ADDR, CALLBOOK_FROM_BLOCK: "100", CALLBOOK_VALIDATOR: "0x123" });
+    const bad = callbookNetwork({ CALLBOOK_NETWORK: "mainnet", CALLBOOK_ADDRESS: ADDR, CALLBOOK_FROM_BLOCK: "100", CALLBOOK_VALIDATOR: "0x123" });
     assert.equal(bad.registry, null);
+    // The deployment record can name it (testnet's does), and a setting overrides the record.
+    assert.match(callbookNetwork({ CALLBOOK_NETWORK: "testnet", CALLBOOK_ADDRESS: ADDR, CALLBOOK_FROM_BLOCK: "100" }).registry, /^0x8004/);
     const good = callbookNetwork({ CALLBOOK_NETWORK: "testnet", CALLBOOK_ADDRESS: ADDR, CALLBOOK_FROM_BLOCK: "100", CALLBOOK_VALIDATOR: OWNER });
     assert.match(good.registry, /^0x8004/);
   });

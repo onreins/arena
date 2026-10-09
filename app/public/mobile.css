@@ -1,0 +1,240 @@
+/* The phone layout, after Aave Pro's (pro.aave.com): a slim top bar with the
+   mark, the account pill and round search and menu buttons; a full-screen,
+   grouped menu instead of a tab bar; page headers flush with the page instead
+   of boxed heroes; and list rows as cards with label/value lines.
+   Linked last on every page, after the page's own stylesheets, so it wins
+   ties. Desktop is untouched. */
+
+/* Off on desktop: the phone controls. */
+.top-ic, #m-search-x, .mnav { display: none; }
+.top-brand .tb-name, .top-brand .tag { display: none; }
+
+@media (max-width: 900px) {
+  /* ---------------------------------------------------------------- the frame */
+  .top { height: 64px; gap: 8px; border-bottom: 1px solid var(--line); }
+  .top-brand { display: flex; align-items: center; gap: 8px; width: auto; height: 40px; border-radius: 0; }
+  .top-brand svg { width: 28px; height: 28px; }
+  .top-brand .tb-name { display: inline; color: #fff; font: 600 17px var(--sans); letter-spacing: -.01em; }
+  .top-brand .tag { display: inline-block; padding: 1px 7px; border-radius: 999px; border: 1.5px solid #8b7cff; color: #c9c2ff; font: 600 10px/14px var(--sans); letter-spacing: .04em; }
+  .top .search { display: none; }
+  .top-r { gap: 8px; margin-left: auto; }
+  .top .btn-white#wallet { height: 40px; padding: 0 16px; }
+  .top .btn-white#wallet.signed { padding: 0 6px; }
+  .top-ic {
+    display: grid; place-items: center; flex: none; width: 40px; height: 40px; border-radius: 50%;
+    background: var(--chip); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line-2);
+  }
+  .top-ic:active { background: var(--chip-2); }
+  .top-ic .ic { width: 20px; height: 20px; }
+
+  /* Search: the field takes the whole bar, with a round close button. */
+  .top.searching .top-brand, .top.searching .top-r { display: none; }
+  .top.searching .search { display: block; flex: 1; height: 40px; }
+  .top.searching .search kbd { display: none; }
+  .top.searching #m-search-x { display: grid; }
+
+  /* The menu: full screen under the bar. Your account on top, the main pages as
+     coloured tiles, the rest in grouped cards, the network at the foot. */
+  .mnav:not([hidden]) {
+    display: block; position: fixed; inset: 64px 0 0 0; z-index: 40; overflow-y: auto; overscroll-behavior: contain;
+    padding: 14px 16px calc(28px + env(safe-area-inset-bottom));
+    background:
+      radial-gradient(120% 60% at 100% 0%, rgba(139, 124, 246, .10), transparent 60%),
+      radial-gradient(90% 50% at 0% 100%, rgba(30, 155, 255, .07), transparent 60%),
+      var(--bg);
+  }
+  .mnav:not([hidden]) > * { animation: mnav-rise .32s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(var(--i, 0) * 35ms); }
+  .mnav .ic { flex: none; }
+
+  /* Account card */
+  .mnav .acct {
+    display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px;
+    background: linear-gradient(135deg, rgba(139, 124, 246, .16), rgba(30, 155, 255, .08) 55%, rgba(255, 255, 255, .02));
+    box-shadow: inset 0 0 0 1px rgba(139, 124, 246, .22), 0 10px 30px -18px rgba(139, 124, 246, .6);
+  }
+  .mnav .acct > svg, .mnav .acct > img { flex: none; border-radius: 12px; }
+  .mnav .acct .a-txt { display: grid; gap: 3px; min-width: 0; flex: 1; }
+  .mnav .acct .a-txt b { color: #fff; font: 600 15px var(--sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mnav .acct .a-txt small { color: var(--ink-3); font-size: 12.5px; line-height: 1.4; }
+  .mnav .acct .a-go { display: inline-flex; align-items: center; gap: 2px; padding: 6px 8px 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, .08); color: #fff; font: 500 13px var(--sans); }
+  .mnav .acct .a-go .ic { width: 14px; height: 14px; }
+  .mnav .acct.out .btn-white { flex: none; height: 38px; padding: 0 16px; }
+  .mnav a.acct:active { transform: scale(.985); }
+
+  /* Main pages: two columns of tiles */
+  .mnav .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .mnav .tile {
+    --tint: var(--blue);
+    position: relative; display: grid; gap: 2px; padding: 14px; border-radius: 16px; min-height: 104px; align-content: end;
+    background: var(--card); box-shadow: inset 0 0 0 1px var(--line-2); overflow: hidden;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .mnav .tile::before {
+    content: ""; position: absolute; inset: auto -30% -60% auto; width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--tint) 28%, transparent), transparent 70%); pointer-events: none;
+  }
+  .mnav .tile .t-ic {
+    position: absolute; top: 12px; left: 12px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px;
+    background: color-mix(in srgb, var(--tint) 16%, transparent); color: var(--tint);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 26%, transparent);
+  }
+  .mnav .tile .t-ic .ic { width: 18px; height: 18px; }
+  .mnav .tile b { color: #fff; font: 600 15px var(--sans); }
+  .mnav .tile small { color: var(--ink-3); font-size: 12px; }
+  .mnav .tile:active { transform: scale(.97); }
+  .mnav .tile[aria-current="page"] {
+    background: color-mix(in srgb, var(--tint) 9%, var(--card));
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tint) 60%, transparent);
+  }
+  .mnav .tile[aria-current="page"]::after {
+    content: ""; position: absolute; top: 14px; right: 14px; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--tint); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tint) 20%, transparent);
+  }
+  .mnav .t-blue { --tint: var(--blue); }
+  .mnav .t-violet { --tint: var(--violet); }
+  .mnav .t-green { --tint: var(--green); }
+  .mnav .t-amber { --tint: var(--amber); }
+  .mnav .t-orange { --tint: var(--orange); }
+  .mnav .t-pink { --tint: #e879b9; }
+
+  /* Grouped cards of rows */
+  .mnav .grp { margin: 22px 4px 8px; color: var(--ink-4); font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+  .mnav .card { padding: 4px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line-2); }
+  .mnav a.row { position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 10px; border-radius: 12px; }
+  .mnav a.row + a.row::before { content: ""; position: absolute; top: 0; left: 54px; right: 10px; border-top: 1px solid var(--line); }
+  .mnav a.row .r-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 10px; background: var(--chip-2); color: var(--ink-2); }
+  .mnav a.row .r-ic .ic { width: 17px; height: 17px; }
+  .mnav a.row .r-txt { display: grid; gap: 2px; flex: 1; min-width: 0; }
+  .mnav a.row .r-txt b { color: var(--ink); font: 500 15px var(--sans); }
+  .mnav a.row .r-txt small { color: var(--ink-3); font-size: 12px; }
+  .mnav a.row .r-go { width: 15px; height: 15px; color: var(--ink-4); }
+  .mnav a.row:active { background: var(--chip); }
+  .mnav a.row[aria-current="page"] { background: var(--chip); }
+  .mnav a.row[aria-current="page"] .r-ic { background: color-mix(in srgb, var(--blue) 18%, transparent); color: var(--blue); }
+
+  /* Foot: the network and the name */
+  .mnav .m-foot { display: flex; justify-content: space-between; align-items: center; margin: 22px 4px 0; color: var(--ink-4); font-size: 12px; }
+  .mnav .m-foot .net { font-size: 12px; }
+
+  body.mnav-on { overflow: hidden; }
+  /* Charts keeps its own, slimmer top bar. */
+  .tm-top ~ .mnav:not([hidden]) { top: 52px; }
+  .tm-top .top-ic { width: 36px; height: 36px; }
+}
+@keyframes mnav-rise { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .mnav:not([hidden]) > * { animation: none; } }
+
+@media (max-width: 760px) {
+  /* ---------------------------------------------------------------- page headers */
+  /* Heroes become flush page headers: no box, no glow, no art; a big title and the text under it. */
+  .hm-hero:not(.cr-card), .cb-hero {
+    background: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important;
+    padding: 20px 0 4px !important; grid-template-columns: minmax(0, 1fr) !important; gap: 24px !important; overflow: visible;
+  }
+  .hm-hero:not(.cr-card)::before, .hm-hero:not(.cr-card)::after, .cb-hero::after, .cb-hero-bg,
+  .cb-hero > .fx-canvas, .hm-hero:not(.cr-card) > .fx-canvas { display: none !important; }
+  .cb-hero h1, .hm-hero h1 { font-size: 32px !important; line-height: 1.08 !important; letter-spacing: -.03em; }
+  .cb-hero p, .hm-hero p { font-size: 15px; line-height: 1.55; }
+  .page-head h1 { font-size: 30px; line-height: 1.15; }
+  /* The hero's stat strip: was bled to the old box's edges; now a box of its own. */
+  .cb-hero .cb-stats {
+    margin: 4px 0 0 !important; padding: 16px !important; border: 0; border-radius: 16px;
+    background: rgba(255, 255, 255, .03); box-shadow: inset 0 0 0 1px var(--line-2);
+  }
+
+  /* Panels and cards: one radius, one inset line, roomy padding. */
+  .hm-panel, .cbp-rec, .cbl-card { border-radius: 16px; }
+  .hm-panel { padding: 16px; }
+
+  /* ---------------------------------------------------------------- the Arena board */
+  /* Every row a card: name, tags and its record on top, a line, then three stat
+     boxes (score, skill, return or calls) and its coverage along the foot. */
+  .cb-lb-wrap { overflow: visible; border: 0; box-shadow: none; background: none; }
+  .cb-lb, .cb-lb tbody { display: block; width: 100%; }
+  .cb-lb thead { display: none; }
+  .cb-lb tr.row {
+    position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+    margin: 0 0 14px; padding: 16px; border-radius: 20px;
+    background:
+      radial-gradient(140% 90% at 100% 0%, rgba(139, 124, 246, .10), transparent 55%) padding-box,
+      linear-gradient(var(--ar-panel, var(--card)), var(--ar-panel, var(--card))) padding-box,
+      linear-gradient(140deg, rgba(139, 124, 255, .40), rgba(63, 208, 255, .10) 40%, rgba(255, 255, 255, .04) 70%) border-box;
+    border: 1px solid transparent; box-shadow: 0 20px 44px -28px rgba(0, 0, 0, .9);
+    transition: transform .15s ease;
+  }
+  .cb-lb tr.row:active { transform: scale(.985); }
+  .cb-lb tr.row.base { opacity: .82; }
+  .cb-lb tr.row td { height: auto; padding: 0; border: 0; text-align: left; }
+  .cb-lb tr.row td::before {
+    content: attr(data-label); display: block; color: var(--ink-3);
+    font: 500 11px var(--sans); letter-spacing: .05em; text-transform: uppercase;
+  }
+
+  /* Head: name, tags and owner; the record curve top right. */
+  .cb-lb tr.row td.c-bot {
+    grid-column: 1 / -1; order: -1; display: block; min-height: 46px;
+    padding: 0 122px 14px 0; margin-bottom: 6px; border-bottom: 1px solid var(--line);
+  }
+  .cb-lb tr.row td.c-bot::before, .cb-lb tr.row td.c-curve::before { content: none; }
+  .cb-lb tr.row td.c-bot .cb-bot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 100%; }
+  .cb-lb tr.row td.c-bot .cb-bot .n { font: 600 18px var(--sans); letter-spacing: -.01em; }
+  .cb-lb tr.row td.c-bot small { display: block; margin-top: 5px; white-space: normal; color: var(--ink-3); }
+  .cb-lb tr.row td.c-curve { display: block; position: absolute; top: 18px; right: 16px; }
+  .cb-lb tr.row td.c-curve svg { width: 84px; height: 28px; }
+  .cb-lb tr.row td.c-rank.unranked { display: none; }
+  .cb-lb tr.row td.c-rank:not(.unranked) {
+    position: absolute; top: 54px; right: 16px; padding: 2px 9px; border-radius: 999px;
+    background: rgba(255, 255, 255, .06); color: #fff; font: 600 12px var(--mono);
+  }
+  .cb-lb tr.row td.c-rank::before { content: "#"; display: inline; font: inherit; letter-spacing: 0; text-transform: none; color: var(--ink-3); }
+  .cb-lb tr.row td.c-rank.first { background: rgba(230, 176, 98, .16); color: var(--amber); }
+
+  /* The three stat boxes. */
+  .cb-lb tr.row td[data-k="score"], .cb-lb tr.row td[data-k="skill"],
+  .cb-lb tr.row td[data-k="ret"], .cb-lb tr.row td[data-k="calls"] {
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 8px;
+    min-width: 0; min-height: 84px; padding: 11px 12px; border-radius: 14px;
+    background: rgba(255, 255, 255, .035); box-shadow: inset 0 0 0 1px var(--line);
+    font-size: 17px; font-weight: 600;
+  }
+  .cb-lb tr.row td[data-k="score"] {
+    background: linear-gradient(160deg, rgba(139, 124, 246, .18), rgba(139, 124, 246, .04));
+    box-shadow: inset 0 0 0 1px rgba(139, 124, 246, .28);
+  }
+  .cb-lb tr.row td[data-k] > * { max-width: 100%; text-align: left; }
+  .cb-lb tr.row td[data-k="score"] .ar-score, .cb-lb tr.row td[data-k="skill"] > * { align-items: flex-start; justify-items: start; }
+  .cb-lb tr.row td[data-k="score"] .ar-score b { font: 700 24px/1 var(--sans); letter-spacing: -.02em; }
+  .cb-lb tr.row td[data-k="skill"] .cb-skill-n { font-size: 15px; }
+
+  /* Coverage along the foot. */
+  .cb-lb tr.row td[data-k="cov"] {
+    grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 6px;
+    padding-top: 6px; font-size: 13px;
+  }
+  .cb-lb tr.row td[data-k="cov"]::before { margin-right: auto; }
+
+  /* Long cards help nobody: the finer columns stay on the bot's own page. */
+  .cb-lb tr.row td[data-k="vs"], .cb-lb tr.row td[data-k="dd"], .cb-lb tr.row td[data-k="test"],
+  .cb-lb tr.row td[data-k="worst"], .cb-lb tr.row td[data-k="days"], .cb-lb tr.row td[data-k="hit"] { display: none; }
+
+  /* ---------------------------------------------------------------- stat boxes */
+  /* Two to a row, the number large, a soft light in the corner. */
+  .scards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px; }
+  .scard {
+    position: relative; overflow: hidden; min-height: 108px; padding: 14px 14px 15px; border-radius: 16px !important;
+    display: flex; flex-direction: column;
+  }
+  .scard::before {
+    content: ""; position: absolute; top: -50px; left: -40px; width: 130px; height: 130px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(139, 124, 246, .14), transparent 70%); pointer-events: none;
+  }
+  .arena .scard {
+    background:
+      linear-gradient(var(--ar-panel), var(--ar-panel)) padding-box,
+      linear-gradient(140deg, rgba(139, 124, 255, .42), rgba(63, 208, 255, .12) 38%, rgba(255, 255, 255, .04) 70%) border-box;
+    border: 1px solid transparent;
+  }
+  .scard .lbl { position: relative; font: 500 11px var(--sans); letter-spacing: .05em; text-transform: uppercase; }
+  .scard .val { position: relative; margin-top: auto; padding-top: 10px; font: 600 26px/1.1 var(--sans); letter-spacing: -.02em; }
+  .scard .sub2 { position: relative; margin-top: 4px; font-size: 12px; line-height: 1.4; }
+}

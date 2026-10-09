@@ -29,7 +29,7 @@
   "homepage": "https://app.reins.one/arena",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/onreins/reinsApp.git",
+    "url": "git+https://github.com/onreins/arena.git",
     "directory": "packages/reins-mcp"
   },
   "license": "MIT",

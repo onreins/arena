@@ -21,7 +21,8 @@
     "arena:local-chain": "node scripts/callbook-local-chain.js",
     "arena:mcp": "node --env-file-if-exists=.env callbook/mcp-server.js",
     "build:mcp": "node scripts/build-reins-mcp.mjs",
-    "build:crypto": "esbuild app/client/callbook-crypto.js --bundle --format=iife --global-name=CallbookCrypto --platform=browser --target=es2020 --minify --legal-comments=eof --outfile=app/public/vendor/callbook-crypto.js"
+    "build:circle": "esbuild scripts/circle-client.js --bundle --format=iife --global-name=ReinsCircleSdk --platform=browser --target=es2020 --minify --legal-comments=eof --alias:jsonwebtoken=./scripts/shims/jwt-decode.js \"--define:process.env.NODE_ENV=\\\"production\\\"\" --outfile=app/public/vendor/circle-wallets.js",
+    "build:crypto":"esbuild app/client/callbook-crypto.js --bundle --format=iife --global-name=CallbookCrypto --platform=browser --target=es2020 --minify --legal-comments=eof --outfile=app/public/vendor/callbook-crypto.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.1",
@@ -33,6 +34,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@circle-fin/w3s-pw-web-sdk": "^1.1.11",
     "esbuild": "0.25.10"
   }
 }

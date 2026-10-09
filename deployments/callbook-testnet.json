@@ -3,15 +3,16 @@
   "chainId": 5042002,
   "deployer": "0x345634285B884bF3f82C1670fc982678b5aC6D07",
   "contracts": {
-    "callbook": "0x4ce5d1e2851c5112ee6616a03030e32327e6bac2"
+    "callbook": "0x04371e9d8e7becace9c28bf879fecee401e8ad5f"
   },
-  "fromBlock": 66018195,
+  "fromBlock": 66174260,
+  "validator": "0xcB0DE8d0040e2f721482c0a8b35333298F64EB37",
   "txs": {
-    "callbook": "0xec1d6fcb4af2760365d897cc8e67aa3519985fb2044e03f0b21d614d0a87d386"
+    "callbook": "0x70ae05fd67264e8a048823ce989c9465afcf5ce07e3270ba8351125b0114bcc7"
   },
   "external": {
     "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     "mockIdentityRegistry": false
   },
-  "deployedAt": "2026-10-07T19:53:37.560Z"
+  "deployedAt": "2026-10-08T17:53:39.886Z"
 }

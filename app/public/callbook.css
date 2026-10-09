@@ -232,9 +232,10 @@ a.cb-hash .ic { width: 11px; height: 11px; color: var(--ink-4); }
 .cbk-stamp.idle .lock { display: inline; }
 /* How the score was built. */
 .cbk-parts { min-width: 0; padding: 14px 14px 12px; border-radius: 12px; background: rgba(9, 11, 21, .62); box-shadow: inset 0 0 0 1px var(--hair); }
-.cbk-formula { color: #8f98c4; font: 400 11px/1.5 var(--mono); }
+.cbk-formula { color: #a9b1d3; font: 400 12.5px/1.5 var(--sans); cursor: help; }
+.cbk-formula b { display: block; margin-bottom: 2px; color: #fff; font-weight: 600; }
 .cbk-parts ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 2px; }
-.cbk-parts li { display: grid; grid-template-columns: 72px 40px minmax(0, 1fr); gap: 2px 10px; align-items: center; padding: 6px 4px; border-radius: 8px; }
+.cbk-parts li { display: grid; grid-template-columns: 112px 40px minmax(0, 1fr); gap: 2px 10px; align-items: center; padding: 6px 4px; border-radius: 8px; }
 .cbk-parts li[data-tip] { cursor: help; }
 .cbk-parts li:hover, .cbk-parts li:focus-visible { background: rgba(255, 255, 255, .04); }
 .cbk-parts .k { color: #c9d1f2; font-size: 12.5px; }
@@ -526,6 +527,7 @@ main.cb { --ink-4: #8a8888; }
 .cb-view [id] { scroll-margin-top: 72px; }
 .cb-guide-h { max-width: 720px; }
 .cb-guide-h h2 { margin-top: 10px; font: 500 30px/1.1 var(--sans); letter-spacing: -.025em; }
+.cb-guide-not { margin-top: 12px; color: var(--ink-3); font-size: 15px; line-height: 1.5; }
 .cb-guide .cb-view > section { margin-top: 48px; }
 #view-main > .cb-feed-p { margin-top: 40px; }
 
@@ -694,14 +696,27 @@ main.cb { --ink-4: #8a8888; }
 .cb-dir button span { font-size: 18px; }
 .cb-dir button small { color: var(--ink-4); font: 400 12px var(--sans); }
 .cb-dir button:hover { color: var(--ink); }
-.cb-dir .up[aria-pressed="true"] { color: var(--green); background: rgba(102, 195, 153, .1); box-shadow: inset 0 0 0 1.5px rgba(102, 195, 153, .55); }
-.cb-dir .down[aria-pressed="true"] { color: var(--red); background: rgba(232, 113, 107, .1); box-shadow: inset 0 0 0 1.5px rgba(232, 113, 107, .55); }
+.cb-dir button[aria-pressed="true"] { color: var(--ink); background: rgba(139, 124, 246, .12); box-shadow: inset 0 0 0 1.5px rgba(139, 124, 246, .55); }
 .cb-dir button[aria-pressed="true"] small { color: inherit; opacity: .7; }
-.cb-hz { margin-top: 10px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-@media (max-width: 760px) { .cb-hz { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.cb-hz { margin-top: 10px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .cb-hz button { height: 52px; border-radius: 12px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-2); font: 500 15px var(--sans); color: var(--ink-2); }
 .cb-hz button:hover { color: var(--ink); }
 .cb-hz button[aria-pressed="true"] { color: var(--ink); background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .4); }
+/* Optional stop and target, folded away until asked for. */
+.cb-exits { margin-top: 16px; }
+.cb-exits summary { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--ink-2); font: 500 14px var(--sans); list-style: none; }
+.cb-exits summary::-webkit-details-marker { display: none; }
+.cb-exits summary::before { content: "+"; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: var(--chip-2); color: var(--ink); font-weight: 600; }
+.cb-exits[open] summary::before { content: "−"; }
+.cb-exits summary small { color: var(--ink-4); font-size: 12px; font-weight: 400; }
+.cb-exits-b { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.cb-exit { display: grid; gap: 6px; }
+.cb-exit span { color: var(--ink-3); font-size: 12.5px; }
+.cb-exit input { height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-2); color: var(--ink); font: 500 16px var(--mono); outline: none; min-width: 0; }
+.cb-exit input:focus { box-shadow: inset 0 0 0 1.5px rgba(139, 124, 246, .7); }
+.cb-exit input::placeholder { color: var(--ink-4); font-weight: 400; }
+.cb-exits-note { grid-column: 1 / -1; color: var(--ink-3); font-size: 12.5px; line-height: 1.5; }
+.cb-exits-note.bad { color: var(--red); }
 .cb-lock-go { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .cb-lock-prev { color: var(--ink-3); font-size: 13.5px; }
 .cb-lock-prev b { color: var(--ink); font: 500 13.5px var(--mono); }

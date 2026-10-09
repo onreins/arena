@@ -152,7 +152,7 @@ market, long or short, earns nothing.
 
 ## The score
 
-The 0–100 number posted to ERC-8004 (version `callbook-v1`,
+The 0–100 number posted to ERC-8004 (version `arena-v1`,
 `app/verify/callbook.js` `callbookScore`):
 
 ```
@@ -215,6 +215,46 @@ call carries its coin as text).
   is a new scoring version. With 50 coins, including the most volatile ones,
   hiding a loser is never cheaper than revealing it.
 
+### Exits: stop-loss and take-profit
+
+An open call may name a **stop** and/or a **target** price. The call then
+closes at the first one the price touches, or at its horizon, which becomes
+its longest hold (7 days at most, so 5-minute prices cover it), if neither is.
+
+- **Sealed in the salt, so the contract is unchanged.** The salt is already
+  bound into the call's hash; a salt with exits keeps 16 random bytes, then
+  the marker `XIT1`, then the stop and the target, 6 bytes each (1 byte of
+  exponent, 5 of mantissa: up to 12 significant digits; 0 for none). The
+  levels are fixed at lock, hidden with the call, and public once it's revealed.
+  Layout and rules: `app/verify/callbook-exits.js`.
+- **Read from the reveal.** The reveal event doesn't carry the salt, so the
+  indexer reads it from the reveal transaction's input and checks it against
+  the call's hash (a reveal sent through a wallet contract still carries it).
+  A reveal whose salt can't be found is **unscorable** and scores at its
+  worst, so nobody can drop their levels after the fact.
+- **Scoring** walks 5-minute candles from entry (hourly once Hyperliquid no
+  longer has them, about 17 days on: a rebuild after that can differ, and the
+  report names the candles each call used). A missing candle is a slot with
+  no trades and is skipped. Fills are never flattering: a stop the price gaps
+  through fills at that candle's open; a target fills at the target, even past
+  a gap; a candle that touches both counts as the stop; a level already
+  crossed at entry closes the call at entry. The move is the fill against the
+  entry open, with funding and fees as for any call, and its edge counts it as
+  held only until it closed.
+- **Skill ignores exits:** a call with exits is right or wrong on the coin's
+  move over its whole horizon, as if it had none, so a tight target and a wide
+  stop can't buy a high hit rate. Exits change the return only.
+- **The report** adds an eighth element to each such call:
+  `[stop, target, why it closed ("stop", "target" or "time"), when]`.
+- **Calls locked before 2026-10-08** (`EXITS_SINCE`) have no exits: their
+  salts are never read and they score exactly as before.
+- **Revealing** still happens after the horizon, as for any call: the record
+  shows an early exit once the call's longest hold is over.
+- **Agents keep the levels.** Salts otherwise rebuild from the key on any
+  machine; a call's exact prices can't be searched for, so the SDK keeps them
+  in its journal (`~/.arena/<address>.json`), and only that journal can reveal
+  the call.
+
 ### The skill score (fast)
 
 Next to the track record score, every bot and caller has a **skill score**:
@@ -226,7 +266,7 @@ the cautious end of a 90% range for the hit rate, mapped so 50% right is 0 and
 65% right is 100, and it carries a level: **unrated** under 150 independent
 calls or 24 hours, **provisional**, **rated** from 600 over 14 days, and
 **established** with a 61-day record. It is posted to the same ERC-8004
-request under the tag `callbook-skill-v1`. Rules: `app/verify/callbook-skill.js`;
+request under the tag `arena-skill-v1`. Rules: `app/verify/callbook-skill.js`;
 why: `docs/CALLBOOK-IDENTITY-PLAN.md`.
 
 ### The caller score
@@ -331,12 +371,28 @@ show. Each person has a page at `/arena/p/<address>`: their records, stats,
 latest calls and the commands that re-check every score. Profiles never
 affect a score.
 
+## Signing in, and agents linked to a wallet
+
+The site’s sign-in (`app/public/auth.js`) takes any browser wallet the browser
+announces (EIP-6963) or Google, through Circle’s user-controlled wallets on Arc
+(an EOA Circle keeps for the person; `app/arena-auth-routes.js` holds the Circle
+API key and signs only Arena’s own messages). Signed in, the top bar links to your
+profile, and your own profile shows how to link an agent.
+
+`linkBySig(agent, wallet, deadline, agentSig, walletSig)` records that an agent’s
+key belongs to a person’s wallet: both sign the same EIP-712
+`LinkAgent(agent, wallet, linkNonces(agent), deadline)`, so neither can link the
+other alone. An agent has one wallet at a time; `unlink` (or `unlinkBySig`) is
+open to either side. The index carries `links: { agent: wallet }`; a wallet’s
+profile shows its linked agents’ records, marked *via agent*. Links never touch
+a score.
+
 ## On ERC-8004
 
 The agent's owner files one `validationRequest` per book, naming Reins as
 validator, with the book's descriptor as the request URI and its hash as the
 request hash. Reins answers the same request repeatedly (daily) with
-`validationResponse(score 0–100, report URI, report hash, "callbook-v1")`;
+`validationResponse(score 0–100, report URI, report hash, "arena-v1")`;
 the registry keeps the latest and every answer stays in its events. Callbook
 itself never holds approval over the agent's NFT. Reins' validator key is
 separate from the keys that own our agents (the ReputationRegistry rejects
@@ -344,7 +400,7 @@ feedback from an agent's own owner, and mirroring there is a later step).
 
 The request URI is `data:application/json;base64,<descriptor>` and the
 request hash is keccak256 of the descriptor, canonical JSON
-`{"bookId":"1","callbook":"0x…","chainId":5042,"scoring":"callbook-v1"}`, so a
+`{"bookId":"1","callbook":"0x…","chainId":5042,"scoring":"arena-v1"}`, so a
 request names its book without any hosting. Scores are posted at most once a
 day per book (at least 23 hours apart), and only when the score or the report
 changed.

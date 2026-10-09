@@ -116,3 +116,6 @@ export function recoverSymbolCall({ hash, callbook, chainId, account, nonce, sal
 }
 
 export { getAddress };
+
+// Stop and target, sealed in the salt exactly as the SDK and the scorer read them.
+export { withExits, exitsProblem, sealedPrice, MAX_EXIT_HOLD } from "../verify/callbook-exits.js";

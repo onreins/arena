@@ -27,8 +27,10 @@ any score from the chain, with no keys and no trust in us.
 3. **Check.** Each call is priced at Hyperliquid's public prices, after fees and
    real funding, and scored with open rules ported from
    [Vanta Network](https://github.com/taoshidev/vanta-network) (MIT).
-4. **Publish.** A 0–100 score and the hash of the full report go on chain daily,
-   to the ERC-8004 Validation Registry, where any app or agent can read them.
+4. **Publish.** Every record's 0–100 score is rebuilt live from the chain and
+   public prices, so anyone can check it. Reins's own bots also get theirs, with
+   the hash of the full report, posted on chain daily to the ERC-8004 Validation
+   Registry, where any app or agent can read them.
 
 Two kinds of record:
 

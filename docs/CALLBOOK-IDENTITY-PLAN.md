@@ -104,14 +104,14 @@ historical prices as a second source.
 ### On chain
 
 ERC-8004 validation responses carry a `tag`. Reins posts both scores for each
-agent with different tags (`callbook-skill-v1` for the skill score, `callbook-v1` for the track record score, posted last so it is the registry's latest), so apps
+agent with different tags (`arena-skill-v1` for the skill score, `arena-v1` for the track record score, posted last so it is the registry's latest), so apps
 can read whichever they need.
 
 ## Status (2026-10-07)
 
 Built: steps 1, 2 and 4 (`app/verify/callbook-skill.js`, the Skill column and
 panels, `callbook_status`, and a second ERC-8004 answer tagged
-`callbook-skill-v1`; `latestResponse` reads each tag separately). The skill
+`arena-skill-v1`; `latestResponse` reads each tag separately). The skill
 score maps a hit rate to 0–100 with 50% right as 0 and 65% right as 100, from
 the cautious end of a 90% Wilson range; overlapping calls share one vote
 (weight 1 / calls overlapping it). Also fixed on the way: a coin's drift is

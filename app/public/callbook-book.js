@@ -57,23 +57,7 @@
       "<span>" + (v ? "Published to ERC-8004 <span class=\"nb\">" + esc(C.ago(v.at)) + "</span>" : "Updated daily") + "</span></figcaption></div>" + breakdown(b, s, why) + C.skillPanel(b.skill);
   }
   function breakdown(b, s, why) {
-    var p = b.score && b.score.parts, m = b.metrics, R = C.RULES;
-    if (!p) return "";
-    var part = function (k, x, note, tip) {
-      var f = Math.max(0, Math.min(1, x || 0));
-      return '<li' + (tip ? ' tabindex="0" data-tip="' + esc(tip) + '"' : "") + '><span class="k">' + esc(k) + '</span><b class="mono' + (f === 0 ? " nil" : "") + '">' + C.num(x) + "</b>" +
-        '<span class="bar" aria-hidden="true"><i style="width:' + (f * 100).toFixed(0) + '%"></i></span><small>' + note + "</small></li>";
-    };
-    var ddFull = C.isNum(m.maxDrawdown) && m.maxDrawdown >= R.maxDrawdown;
-    var lvl = C.levelLine(b);
-    return '<div class="cbk-parts"><p class="cbk-formula"><b>How it’s built</b> 100 × coverage × (0.6·profit + 0.4·edge) × (0.6 + 0.4·risk)</p><ul>' +
-      part("Profit", p.profit, "t = " + esc(C.num(p.profitT)) + (p.profit > 0 ? ", full credit at 3" : C.isNum(m.totalReturn) && m.totalReturn <= 0 ? ", not making money yet" : ", not steady yet"), "clamp(t ÷ 3, 0, 1): the t-statistic of each call's return after fees and funding, when they add up above 0") +
-      part("Edge", p.edge, "t = " + esc(C.num(p.tStat)) + (p.edge <= 0 ? ", not beating the market" : ", full credit at 3"), "clamp(t ÷ 3, 0, 1): the t-statistic of each call's return less beta × the market move") +
-      part("Risk", p.risk, "drop " + C.dd(m.maxDrawdown) + (ddFull ? ", past 40%" : "") + " · keeps " + Math.round(100 * (R.riskFloor + (1 - R.riskFloor) * (p.risk || 0))) + "%",
-        "clamp(1 − max drawdown ÷ 40%, 0, 1) × min(1, exposure ÷ 50%); it scales the score from 60% to 100%, never adds to it") +
-      part("Coverage", p.coverage, (m.missed || m.withheld ? esc(C.int(m.missed)) + " missed · " + esc(C.int(m.withheld)) + " kept hidden" : "every call due was revealed"), "revealed ÷ (revealed + missed + withheld)") +
-      "</ul>" + (lvl ? '<p class="cbk-level">' + esc(lvl) + "</p>" : "") +
-      (why && why.next ? '<p class="cbk-zero"><b>What’s next.</b> ' + esc(why.next) + "</p>" : "") + "</div>";
+    return C.scoreParts(b, "the market", why && why.next);
   }
 
   // ------------------------------------------------------------- stats

@@ -68,7 +68,9 @@ export function ourBooksFrom({ record, owner, callbook }) {
  */
 export function arenaEnv(env = process.env) {
   const out = { ...env };
-  for (const [k, v] of Object.entries(env)) if (k.startsWith("ARENA_") && v !== undefined && v !== "") out[`CALLBOOK_${k.slice(6)}`] = v;
+  // Values pasted into a dashboard often carry a stray tab or space: Arena's settings are trimmed.
+  for (const [k, v] of Object.entries(env)) if (/^(ARENA|CALLBOOK)_/.test(k) && typeof v === "string") out[k] = v.trim();
+  for (const [k, v] of Object.entries(env)) if (k.startsWith("ARENA_") && v !== undefined && String(v).trim() !== "") out[`CALLBOOK_${k.slice(6)}`] = String(v).trim();
   return out;
 }
 

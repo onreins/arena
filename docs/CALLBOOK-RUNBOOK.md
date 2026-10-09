@@ -93,9 +93,9 @@ Fund, per network (mainnet amounts; testnet USDC from https://faucet.circle.com)
 - [ ] Each key funded on the network you're about to use (section 2).
 - [ ] `CALLBOOK_REPORT_BASE` decided (default `https://app.reins.one`). It is
       baked into every agent's on-chain URI
-      (`<base>/callbook/agents/<slug>.json`); changing it later costs one
+      (`<base>/arena/agents/<slug>.json`); changing it later costs one
       `setAgentURI` per agent.
-- [ ] The registration files `app/public/callbook/agents/*.json` are deployed
+- [ ] The registration files `app/public/arena/agents/*.json` are deployed
       to that base and load in a browser (they start with an empty
       `registrations` list, which setup fills).
 - [ ] The runner host is ready (section 5) and its clock is synced (NTP).
@@ -128,12 +128,12 @@ reveals, one score, `callbook:verify` matching), then repeat it with
 6. **Setup.** `npm run callbook:setup -- --network N` (mainnet: add `--yes`)
    Sends the transactions from the owner key, then writes
    `deployments/callbook-N-books.json` (agent ids, book ids, request hashes,
-   transactions) and rewrites `app/public/callbook/agents/*.json` with the new
+   transactions) and rewrites `app/public/arena/agents/*.json` with the new
    registrations. Run it again at any time: it only does what's missing
    (a crash halfway resumes where it stopped). Do it outside the last 10
    minutes before a 4-hour boundary, so period 0 isn't too close.
 7. **Publish the registration files.** Commit and deploy the updated
-   `app/public/callbook/agents/*.json` (and `deployments/callbook-N.json`,
+   `app/public/arena/agents/*.json` (and `deployments/callbook-N.json`,
    which `vercel.json` bundles into the API) so each agent's URI resolves to
    a file listing its registration.
 8. **API on Vercel.** First add any new records to `includeFiles` in
@@ -218,7 +218,12 @@ pm2 start runner/callbook.js --name callbook-mainnet --node-args="--env-file=.en
 pm2 save && pm2 startup
 ```
 
-or as a systemd service with `Restart=always`. A scheduled job is a worse
+or as a systemd service with `Restart=always`. Or as a container: `Dockerfile.runner`
+builds it (settings come from the host's environment; `.dockerignore` keeps
+every `.env` out of the image), so Railway, Fly.io or Render can run it straight
+from the repository with the variables above set in their dashboard, or on a
+VPS: `docker build -f Dockerfile.runner -t arena-runner . && docker run -d
+--restart=always --env-file .env.runner arena-runner`. A scheduled job is a worse
 fit: the seal window is 10 minutes and GitHub Actions cron can start late by
 more than that. If a scheduler is all there is, run `--once` every minute
 from cron on a machine you control.
@@ -244,7 +249,37 @@ Mainnet https://explorer.arc.io, testnet https://explorer.testnet.arc.io.
 | Open | `/tx/<txs.open>` | `Opened(bookId, owner, agentId, caller, strategyHash, coins, 14400, 14400, start)` on Callbook |
 | Request | `/tx/<txs.request>` | `ValidationRequest(validator, agentId, requestURI, requestHash)`; the URI decodes to the book descriptor |
 | Seal / reveal | the caller's address page | `seal` every 4h per book, `reveal` 4h later |
-| Score | the validator's address page | `validationResponse` on the ValidationRegistry, tag `callbook-v1` |
+| Score | the validator's address page | `validationResponse` on the ValidationRegistry, tag `arena-v1` |
+
+## Google sign-in (Circle wallets)
+
+Off until these are set (the Google button simply doesn’t show):
+
+1. Circle Console: an API key, and a user-controlled wallets app (its App ID).
+   Under Authentication Methods → Social Logins → Google, paste the Google client ID.
+2. Google Cloud Console: an OAuth client ID (Web application) with
+   `https://app.reins.one` as an authorised origin and redirect URI
+   (`https://app.reins.one/arena`).
+3. Vercel: `CIRCLE_API_KEY` (server only), `CIRCLE_APP_ID`, `GOOGLE_CLIENT_ID`.
+
+The Circle SDK bundle is `app/public/vendor/circle-wallets.js`; rebuild it with
+`npm run build:circle` after upgrading `@circle-fin/w3s-pw-web-sdk`.
+
+## The live app: snapshots and health
+
+- **Snapshots.** `.github/workflows/refresh-index-snapshot.yml` runs
+  `npm run snapshot:arena` twice a day and commits
+  `app/data/callbook-state-<network>.json`; Vercel bundles it (`vercel.json`)
+  and the API reads only the blocks after it. Set the repository variables
+  `ARENA_NETWORK` (and `ARENA_VALIDATOR`, `ARENA_FROM_BLOCK` if the deployment
+  record doesn't name them) to match the app's Vercel settings: a snapshot read
+  with another validator is ignored.
+- **Health.** `GET /api/callbook/health` says what's wrong in plain sentences:
+  Arena or the relayer off, the relayer under `ARENA_RELAYER_MIN_USDC` (default
+  1) or the validator under `ARENA_VALIDATOR_MIN_USDC` (default 0.5), no
+  validator set, the chain unreachable. `.github/workflows/health.yml` asks it
+  every 3 hours and fails (GitHub emails you) on any problem; `APP_URL` points
+  it at another deployment.
 
 ## 7. What if
 

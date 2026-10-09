@@ -7,6 +7,8 @@
  *                                              { kind: "lock", bookId, callId, coinIndex, side, salt }
  *                                              { kind: "symbol", bookId, callId, coin, side, salt }
  *   POST {relayUrl}/api/callbook/relay/profile { account, bookId, name, bio, link, deadline, signature }  SetProfile typed data
+ *   POST {relayUrl}/api/callbook/relay/unlink  { agent, signer, deadline, signature }                    UnlinkAgent typed data
+ *   (a link is relayed by the page the person confirms it on: /arena/link)
  *
  * A lock's horizon is public (it's in the transaction and the Locked event) and
  * also inside the hash; reveals use the horizon stored at lock time.
@@ -47,6 +49,21 @@ export const PROFILE_TYPES = {
     { name: "name", type: "string" },
     { name: "bio", type: "string" },
     { name: "link", type: "string" },
+    { name: "nonce", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+  ],
+};
+export const LINK_TYPES = {
+  LinkAgent: [
+    { name: "agent", type: "address" },
+    { name: "wallet", type: "address" },
+    { name: "nonce", type: "uint256" },
+    { name: "deadline", type: "uint256" },
+  ],
+};
+export const UNLINK_TYPES = {
+  UnlinkAgent: [
+    { name: "agent", type: "address" },
     { name: "nonce", type: "uint256" },
     { name: "deadline", type: "uint256" },
   ],

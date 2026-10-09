@@ -77,7 +77,7 @@ svg { display: block; }
 .search input:focus { border-color: rgba(255, 255, 255, .18); }
 .search kbd { position: absolute; right: 7px; top: 7px; width: 20px; height: 20px; border-radius: 5px; border: 1px solid var(--line-2); display: grid; place-items: center; font: 400 12px var(--sans); color: var(--ink-4); }
 .top-r { display: flex; align-items: center; gap: 16px; flex: none; }
-.top-brand, .tabbar { display: none; }
+.top-brand { display: none; }
 .net { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-3); white-space: nowrap; }
 .net i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(102, 195, 153, .15); }
 .net.off i { background: var(--red); box-shadow: 0 0 0 3px rgba(232, 113, 107, .15); }
@@ -378,16 +378,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 @media (max-width: 900px) {
   :root { --side: 0px; }
   .side { display: none; }
-  /* The phone frame: the mark in the top bar, the main pages in a bar along the bottom. */
+  /* The phone frame: the mark in the top bar; the menu and the rest are in mobile.css. */
   .top { gap: 10px; }
   .top-brand { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; }
-  .tabbar { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: fixed; inset: auto 0 0 0; z-index: 30; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: rgba(16, 15, 15, .94); border-top: 1px solid var(--line-2); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
-  .tabbar a { min-width: 0; height: 48px; border-radius: 10px; display: grid; place-items: center; align-content: center; gap: 4px; color: var(--ink-3); font: 500 11px var(--sans); }
-  .tabbar a span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tabbar a .ic { width: 20px; height: 20px; }
-  .tabbar a[aria-current="page"] { color: var(--ink); }
-  .tabbar a:active { background: var(--chip); }
-  main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  main { padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
   .top, main { padding-inline: 16px; }
   .top .net { display: none; }
   .filters { margin-inline: -16px; padding-inline: 16px; }
@@ -417,7 +411,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
   .crumbs a { padding: 11px 0; margin-block: -11px; }
   .hsec h2 small, .hm-panel-h h2 small { font-size: 12px; }
   /* The tab bar is fixed over the page's foot, so the chat keeps the room for it too. */
-  main.rx-main { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  main.rx-main { padding-bottom: env(safe-area-inset-bottom); }
 }
 @media (max-width: 560px) { .search kbd { display: none; } .stats { gap: 20px; } .pcard { grid-template-columns: minmax(0, 1fr); } }
 

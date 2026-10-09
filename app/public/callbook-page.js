@@ -89,11 +89,11 @@
       noun: ["bot", "bots"],
       metric: "Arena score, 0–100",
       scored: function () { var s = D.stats || {}; return (s.revealed || 0) + (s.withheld || 0); },
-      lede: "Every strategy bot, ranked by its Arena score: a <span class=\"nb\">0–100</span> grade of the call it locks every round, after costs, published daily.",
-      foot: "Scores update after each round and are published on chain once a day",
+      lede: "Every strategy bot, ranked by its Arena score: a <span class=\"nb\">0–100</span> grade of the call it locks every round, after costs.",
+      foot: "Scores update after each round; Reins’s own bots also post theirs on chain once a day",
       filters: true,
       cols: [
-        { key: "score", h: "Score", tip: "The Arena score, 0 to 100, published daily under ERC-8004", cls: "r mono", v: function (b) { return C.scoreOf(b); }, cell: scoreCell },
+        { key: "score", h: "Score", tip: "The Arena score, 0 to 100. Reins’s own bots also post theirs daily under ERC-8004", cls: "r mono", v: function (b) { return C.scoreOf(b); }, cell: scoreCell },
         { key: "skill", h: "Skill", tip: "Skill: how sure we are its calls beat the market's own move. 0 until it's clearly better than a coin flip, 100 at 65% right. Rated by the number of calls, not days", cls: "r", v: function (b) { return C.skillRank(b.skill); }, cell: function (b) { return C.skillHtml(b.skill); } },
         { key: "ret", h: "Return", tip: "What its calls made, compounded, after fees and funding", cls: "r mono m-hide", v: function (b) { return b.metrics.totalReturn; }, cell: function (b) { return C.pctHtml(b.metrics.totalReturn); } },
         { key: "vs", h: "Vs market", tip: "Each call's return less the equal-weight move of the bot's coins, in the direction called", cls: "r mono opt", v: function (b) { return b.metrics.vsMarket; }, cell: function (b) { return C.pctHtml(b.metrics.vsMarket); } },
@@ -110,7 +110,7 @@
       noun: ["caller", "callers"],
       metric: "Caller score, 0–100",
       scored: function () { var s = D.stats || {}; return (s.lockedRevealed || 0) + (s.lockedWithheld || 0); },
-      lede: "Everyone who locks open calls, ranked by caller score: how much their calls beat each coin’s own move, after costs. <span class=\"nb\">0–100</span>, updated after every reveal and published on chain daily.",
+      lede: "Everyone who locks open calls, ranked by caller score: how much their calls beat each coin’s own move, after costs. <span class=\"nb\">0–100</span>, updated after every reveal, and anyone can rebuild it from the chain.",
       foot: "Open calls are ranked separately from strategies, because choosing when to call is part of the skill",
       filters: false,
       cols: [
@@ -159,19 +159,22 @@
   function row(x, rank) {
     var B = cfg(), href = B.href(x);
     return '<tr class="row' + (isBaseline(x) ? " base" : "") + '" data-href="' + esc(href) + '">' +
-      '<td class="c-rank mono' + (rank === 1 ? " first" : "") + '">' + (rank ? rank : '<span class="muted" tabindex="0" data-tip="Ranks appear at ' + RANK_MIN + " " + B.noun[1] + " and " + RANK_DAYS + ' days of record">—</span>') + "</td>" +
+      '<td class="c-rank mono' + (rank === 1 ? " first" : "") + (rank ? "" : " unranked") + '" data-label="Rank">' + (rank ? rank : '<span class="muted" tabindex="0" data-tip="Ranks appear at ' + RANK_MIN + " " + B.noun[1] + " and " + RANK_DAYS + ' days of record">—</span>') + "</td>" +
       '<td class="c-bot"><a class="cb-bot" href="' + esc(href) + '"><span class="n">' + esc(C.nameOf(x)) + "</span>" + tagsOf(x) + "</a>" +
         '<small title="' + esc(x.description || "") + '">' + B.sub(x) + byLink(x) + "</small></td>" +
-      B.cols.map(function (c) { return '<td class="' + c.cls + '">' + c.cell(x) + "</td>"; }).join("") + "</tr>";
+      // data-label and data-k: on a phone each row is a card of label/value lines (mobile.css).
+      B.cols.map(function (c) { return '<td class="' + c.cls + '" data-k="' + esc(c.key) + '" data-label="' + esc(c.h) + '">' + c.cell(x) + "</td>"; }).join("") + "</tr>";
   }
-  // Who runs a record: their own Arena name, Reins for ours, else their short address.
+  // Who runs a record: the wallet its agent is linked to, if any, else its owner.
+  function whoseOf(x) { var w = D.links && C.own(D.links, x.owner); return w || x.owner || ""; }
+  // Their own Arena name, Reins for ours, else their short address.
   function personOf(x) {
-    var p = D.people && C.own(D.people, x.owner);
-    return p && p.name ? p.name : x.ours ? "Reins" : U.short(x.owner || "");
+    var who = whoseOf(x), p = D.people && C.own(D.people, who);
+    return p && p.name ? p.name : x.ours ? "Reins" : U.short(who);
   }
   // "· by <person>", linking to everything they run (/arena/p/<address>).
   function byLink(x) {
-    var href = C.profileHref(x.owner);
+    var href = C.profileHref(whoseOf(x));
     return href ? ' · <a class="cb-by" href="' + esc(href) + '">by ' + esc(personOf(x)) + "</a>" : "";
   }
   function visible() {
@@ -337,6 +340,8 @@
 
   // ------------------------------------------------------------- the feed
   var KIND = { sealed: ["lock", "sealed"], locked: ["lock", "sealed"], revealed: ["unlock", "revealed"], validated: ["shield", "validated"], missed: ["miss", "missed"] };
+  // Why a call with a stop or target closed.
+  var EXIT_WORD = { stop: "stopped out", target: "hit its target", time: "ran its full time" };
   var feedKind = "all";
   function bookLink(f) {
     var href = f.caller ? "/arena-caller?c=" + encodeURIComponent(f.callerId || f.bookId) : "/arena-bot?b=" + encodeURIComponent(f.bookId);
@@ -351,7 +356,8 @@
     }
     else if (f.kind === "locked") text = bookLink(f) + " locked a call <span class=\"cb-ev-m\">hidden until it’s revealed</span>";
     else if (f.kind === "revealed") text = bookLink(f) + " revealed: " + esc(f.coin || "") + " " + C.sidePill(f.side) + (C.isNum(f.horizon) ? " <span class=\"cb-ev-m\">" + esc(C.hours(f.horizon)) + "</span>" : "") +
-      (f.side ? " " + C.pctHtml(f.ret, 2) : " <span class=\"cb-ev-m\">sat out</span>");
+      (f.side ? " " + C.pctHtml(f.ret, 2) : " <span class=\"cb-ev-m\">sat out</span>") +
+      (EXIT_WORD[f.exitReason] ? " <span class=\"cb-ev-m\">" + EXIT_WORD[f.exitReason] + "</span>" : "");
     else if (f.kind === "validated") text = (f.tag === "arena-skill-v1" ? "Skill score" : "Score") + " published for " + bookLink(f) + ": <b>" + esc(f.score) + "/100</b>";
     else text = bookLink(f) + (f.note === "withheld" ? " kept a call hidden <span class=\"cb-ev-m\">counted as its worst result</span>" : " missed a call <span class=\"cb-ev-m\">counts against it</span>");
     return '<li class="cb-ev ' + k[1] + '"><span class="ei">' + U.icon(k[0]) + "</span><div><p>" + text + "</p>" +

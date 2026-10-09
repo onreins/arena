@@ -159,6 +159,10 @@ contract Callbook is EIP712 {
         "SetProfile(address account,uint256 bookId,string name,string bio,string link,uint256 nonce,uint256 deadline)"
     );
 
+    bytes32 public constant LINK_TYPEHASH =
+        keccak256("LinkAgent(address agent,address wallet,uint256 nonce,uint256 deadline)");
+    bytes32 public constant UNLINK_TYPEHASH = keccak256("UnlinkAgent(address agent,uint256 nonce,uint256 deadline)");
+
     /// Profile caps, in bytes. What a name may say is checked off-chain.
     uint256 public constant MAX_NAME_BYTES = 32;
     uint256 public constant MAX_BIO_BYTES = 160;
@@ -188,6 +192,10 @@ contract Callbook is EIP712 {
     mapping(address => uint64) private _nonces;
     /// Separate from `nonces`: those are bound into call hashes signed ahead of time.
     mapping(address => uint256) public profileNonces;
+    /// The wallet an agent's key is linked to (0 when none): its records show on that wallet's profile.
+    mapping(address => address) public walletOf;
+    /// Per agent: each link or unlink by signature uses one up.
+    mapping(address => uint256) public linkNonces;
 
     // ---------------------------------------------------------------------
     // Events
@@ -223,6 +231,8 @@ contract Callbook is EIP712 {
     event RevealedLockedSymbol(uint256 indexed bookId, uint64 indexed callId, string coin, int8 side, uint32 horizon);
     /// bookId 0 is the account itself; an empty name clears the profile.
     event Profile(address indexed account, uint256 indexed bookId, string name, string bio, string link);
+    event AgentLinked(address indexed wallet, address indexed agent);
+    event AgentUnlinked(address indexed wallet, address indexed agent);
 
     // ---------------------------------------------------------------------
     // Errors
@@ -259,6 +269,9 @@ contract Callbook is EIP712 {
     error BadSignature();
     error StaleId(uint64 expected, uint64 actual);
     error ProfileTooLong();
+    error SelfLink();
+    error NotLinked();
+    error NotLinkParty();
 
     // ---------------------------------------------------------------------
     // Setup
@@ -454,6 +467,64 @@ contract Callbook is EIP712 {
         ) revert ProfileTooLong();
         profileNonces[account]++;
         emit Profile(account, bookId, name, bio, link);
+    }
+
+    // ---------------------------------------------------------------------
+    // Agents linked to a wallet
+    // ---------------------------------------------------------------------
+
+    /**
+     * @notice Link an agent's key to a person's wallet, so the agent's records
+     *         show on that wallet's profile. Both sign the same EIP-712
+     *         `LinkAgent(agent, wallet, linkNonces(agent), deadline)`, so neither
+     *         can link the other alone. Anyone may submit it (a relayer pays).
+     *         An agent has one wallet at a time: linking again replaces it.
+     *         Nothing here touches calls or scores.
+     */
+    function linkBySig(address agent, address wallet, uint256 deadline, bytes calldata agentSig, bytes calldata walletSig)
+        external
+    {
+        if (block.timestamp > deadline) revert SignatureExpired(deadline);
+        if (agent == address(0) || wallet == address(0)) revert BadSignature();
+        if (agent == wallet) revert SelfLink();
+        bytes32 digest =
+            _hashTypedDataV4(keccak256(abi.encode(LINK_TYPEHASH, agent, wallet, linkNonces[agent], deadline)));
+        if (!SignatureChecker.isValidSignatureNowCalldata(agent, digest, agentSig)) revert BadSignature();
+        if (!SignatureChecker.isValidSignatureNowCalldata(wallet, digest, walletSig)) revert BadSignature();
+        linkNonces[agent]++;
+        address old = walletOf[agent];
+        if (old != address(0) && old != wallet) emit AgentUnlinked(old, agent);
+        walletOf[agent] = wallet;
+        emit AgentLinked(wallet, agent);
+    }
+
+    /// @notice Unlink an agent from its wallet. Either side may.
+    function unlink(address agent) external {
+        address wallet = walletOf[agent];
+        if (wallet == address(0)) revert NotLinked();
+        if (msg.sender != agent && msg.sender != wallet) revert NotLinkParty();
+        _unlink(agent, wallet);
+    }
+
+    /**
+     * @notice `unlink`, with the gas paid by whoever submits it. `signer` is the
+     *         agent or its wallet; it signs EIP-712
+     *         `UnlinkAgent(agent, linkNonces(agent), deadline)`.
+     */
+    function unlinkBySig(address agent, address signer, uint256 deadline, bytes calldata signature) external {
+        if (block.timestamp > deadline) revert SignatureExpired(deadline);
+        address wallet = walletOf[agent];
+        if (wallet == address(0)) revert NotLinked();
+        if (signer != agent && signer != wallet) revert NotLinkParty();
+        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(UNLINK_TYPEHASH, agent, linkNonces[agent], deadline)));
+        if (!SignatureChecker.isValidSignatureNowCalldata(signer, digest, signature)) revert BadSignature();
+        _unlink(agent, wallet);
+    }
+
+    function _unlink(address agent, address wallet) private {
+        linkNonces[agent]++;
+        delete walletOf[agent];
+        emit AgentUnlinked(wallet, agent);
     }
 
     // ---------------------------------------------------------------------

@@ -99,8 +99,8 @@ export function restCounter({ url, token, prefix = "callbook:", fetch: doFetch =
  */
 export function countersFromEnv(env = process.env, { now, log } = {}) {
   const memory = memoryCounter({ now });
-  const url = env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL;
-  const token = env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN;
+  const url = (env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL)?.trim();
+  const token = (env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN)?.trim();
   if (!url || !token) return memory;
   const shared = restCounter({ url, token, now });
   const safe = (fn) => async (...args) => {

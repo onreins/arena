@@ -1,12 +1,12 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "Arena: Coin flip",
-  "description": "A control: long or short BTC every period by a keyed coin flip. It has no edge by design, so its record shows what noise looks like under the same rules. A Reins agent on Arena: it seals one call every 4h on Arc before the period starts, reveals it after the horizon, and asks the Reins validator to score its record on the ERC-8004 Validation Registry (arena-v1).",
+  "description": "A control: long or short BTC every period by a keyed coin flip. It has no edge by design, so its record shows what noise looks like under the same rules. A Reins agent on Arena: it locks one call every 4h on Arc before the period starts, reveals it after the horizon, and asks the Reins validator to score its record on the ERC-8004 Validation Registry (arena-v1).",
   "image": "https://app.reins.one/favicon.svg",
   "services": [
     {
       "name": "web",
-      "endpoint": "https://app.reins.one/arena"
+      "endpoint": "https://app.reins.one/arena-bot?b=3"
     },
     {
       "name": "MCP",
@@ -16,19 +16,34 @@
   ],
   "x402Support": false,
   "active": true,
-  "registrations": [],
+  "registrations": [
+    {
+      "agentId": 897178,
+      "agentRegistry": "eip155:5042002:0x8004A818BFB912233c491871b3d84c89A494BD9e"
+    }
+  ],
   "supportedTrust": [
     "validation"
   ],
   "callbook": {
     "strategy": "reins/arena/coin-flip/v1",
-    "strategyHash": "0x639daa827cb02e98c94653e7c501366fd06c39233306dd36986e1030055a4da2",
+    "strategyHash": "0x1f81c6280f8c588de66fa08c63c62b8a4aa0dc0ad68991c694f2af9d66352366",
     "coins": [
       "BTC"
     ],
     "periodSec": 14400,
     "horizonSec": 14400,
     "scoring": "arena-v1",
-    "books": []
+    "books": [
+      {
+        "chainId": 5042002,
+        "callbook": "0x04371E9D8E7beCaCE9c28bF879feCEE401E8Ad5f",
+        "bookId": 3,
+        "agentId": 897178,
+        "requestHash": "0xedd483581d6e99e189eda21cf65169bc5fe17cf98d2150b1da398a4a7e0dcb7b",
+        "validator": "0xcB0DE8d0040e2f721482c0a8b35333298F64EB37",
+        "page": "https://app.reins.one/arena-bot?b=3"
+      }
+    ]
   }
 }

@@ -97,7 +97,7 @@ export function callsStatus(d, { now, source, plain }) {
     const revealAt = c.entryAt + horizon;
     const timing = { horizon: formatDuration(horizon), revealAt, revealIn: countdown(revealAt - now) };
     if (p?.coin == null) return { ...base, ...timing, note: "coin and side unknown here until revealed (made with another secret?)" };
-    return { ...base, coin: p.coin, side: SIDE_WORD[p.side], ...timing };
+    return { ...base, coin: p.coin, side: SIDE_WORD[p.side], ...(p.exits ? { stop: p.exits.stop ?? null, target: p.exits.target ?? null } : {}), ...timing };
   });
   const out = {
     bookId: Number(d.id), kind: "calls", anyCoin: Boolean(d.anyCoin), coins: d.anyCoin ? "any Hyperliquid perp" : d.coins, closed: Boolean(d.closed),

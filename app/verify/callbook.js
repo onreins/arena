@@ -545,9 +545,12 @@ export function indexToApi({ meta, chain, books, callers = [], feedLimit = 100 }
     },
     books: all,
     callers: people,
-    // Each person's own name, bio and link, for their profile page (/arena/p/<owner>).
-    people: Object.fromEntries([...new Set([...all, ...people].map((b) => b.owner))]
+    // Each person's own name, bio and link, for their profile page (/arena/p/<owner>),
+    // including wallets whose records come through linked agents.
+    people: Object.fromEntries([...new Set([...all, ...people].map((b) => b.owner).concat([...(chain.links?.values() ?? [])].map((l) => l.wallet)))]
       .map((owner) => [owner, personProfile(chain, owner)]).filter(([, p]) => p)),
+    // Agents linked to a person's wallet: agent -> wallet. Their records also show on that wallet's profile.
+    links: Object.fromEntries([...(chain.links ?? new Map())].map(([agent, l]) => [agent, l.wallet])),
     feed: feed.slice(0, feedLimit),
   };
 }

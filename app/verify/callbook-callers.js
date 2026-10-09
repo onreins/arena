@@ -25,14 +25,13 @@
  *     fixed reference set REFERENCE_SET (arena-v1: Hyperliquid's 50 most
  *     traded perps on 2026-10-07), long or short. The report names the set
  */
-import { encodeAbiParameters, keccak256, toHex } from "viem";
-
 import { VANTA } from "./scoring.js";
-import { canonicalJson, hashText, SCORING_VERSION, requestForBook, latestResponse } from "./callbook-chain.js";
+import { canonicalJson, hashText, SCORING_VERSION, requestForBook, latestResponse, LOCKED_TAG, SYMBOL_TAG, lockedHash, symbolCallHash } from "./callbook-chain.js";
 import { priceBook, resolveSymbol } from "./callbook-prices.js";
 import { callerInfo, profileFor, profileFields } from "./callbook-agents.js";
 import { maxOf, minOf } from "./callbook-util.js";
 import { skillScore, hitOf, recordLevel } from "./callbook-skill.js";
+import { exitsOf, exitsProblem, exitPath, EXITS_SINCE } from "./callbook-exits.js";
 
 const HOUR = 3_600;
 const DAY = 86_400;
@@ -73,24 +72,8 @@ const round = (x, dp = 6) => (x == null || !Number.isFinite(x) ? null : Math.rou
 
 // ------------------------------------------------------------------ preimages
 
-export const LOCKED_TAG = keccak256(toHex("callbook.locked"));
-export const SYMBOL_TAG = keccak256(toHex("callbook.locked.symbol"));
-
-/** Callbook.lockedHashOf: a call in a free book with a coin list. */
-export function lockedHash({ callbook, chainId, bookId, callId, coinIndex, side, horizon, salt }) {
-  return keccak256(encodeAbiParameters(
-    [{ type: "bytes32" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "uint64" }, { type: "uint8" }, { type: "int8" }, { type: "uint32" }, { type: "bytes32" }],
-    [LOCKED_TAG, String(callbook).toLowerCase(), BigInt(chainId), BigInt(bookId), BigInt(callId), coinIndex, side, horizon, salt],
-  ));
-}
-
-/** Callbook.symbolCallHashOf: a call in an any-coin book, bound to the account and its nonce. */
-export function symbolCallHash({ callbook, chainId, account, nonce, coin, side, horizon, salt }) {
-  return keccak256(encodeAbiParameters(
-    [{ type: "bytes32" }, { type: "address" }, { type: "uint256" }, { type: "address" }, { type: "uint64" }, { type: "bytes32" }, { type: "int8" }, { type: "uint32" }, { type: "bytes32" }],
-    [SYMBOL_TAG, String(callbook).toLowerCase(), BigInt(chainId), String(account).toLowerCase(), BigInt(nonce), keccak256(toHex(coin)), side, horizon, salt],
-  ));
-}
+// The open-call hashes live with the chain reader, which checks each reveal's salt against them.
+export { LOCKED_TAG, SYMBOL_TAG, lockedHash, symbolCallHash };
 
 // ------------------------------------------------------------------ statuses
 
@@ -113,10 +96,18 @@ export function deriveLocks(book, now, perpNames) {
     const c = { callId: l.callId, hash: l.hash, lockedAt: l.lockedAt, entryAt: l.entryAt, lockTx: l.lockTx ?? null, horizon, exitAt: horizon == null ? null : l.entryAt + horizon };
     if (l.reveal && l.reveal.at <= now) {
       const coin = resolveSymbol(l.reveal.symbol, perpNames);
-      return {
-        ...c, status: coin ? "revealed" : "unscorable", symbol: l.reveal.symbol, coin, side: l.reveal.side,
-        revealedAt: l.reveal.at, revealTx: l.reveal.tx ?? null,
-      };
+      const r = { ...c, symbol: l.reveal.symbol, coin, side: l.reveal.side, revealedAt: l.reveal.at, revealTx: l.reveal.tx ?? null };
+      // A call locked before exits existed has none and scores as it always did.
+      if (l.lockedAt < EXITS_SINCE) return { ...r, status: coin ? "revealed" : "unscorable" };
+      // No salt in the reveal's transaction matches the call: its exits can't be known, so it scores at its worst.
+      if (l.reveal.salt === null) return { ...r, status: "unscorable", saltUnread: true };
+      // Its salt isn't read yet (callbook-chain.js reads a batch per read): it waits for it.
+      if (l.reveal.salt === undefined) return { ...c, status: "pending", note: "revealed; reading its stop and target", withheldAfter: withheldAfter(book, l) };
+      // Exits the SDK and the lock panel refuse (stop past target, or a hold over 7 days) are
+      // dropped from a hand-built salt: the call then scores on its time alone.
+      const found = exitsOf(l.reveal.salt);
+      const exits = found && !exitsProblem({ side: l.reveal.side, stop: found.stop?.text, target: found.target?.text, horizon }) ? found : null;
+      return { ...r, status: coin ? "revealed" : "unscorable", ...(exits ? { exits } : {}) };
     }
     return { ...c, status: now > withheldAfter(book, l) ? "withheld" : "pending", withheldAfter: withheldAfter(book, l) };
   });
@@ -162,10 +153,10 @@ export function candidatesFor(book, perpNames) {
  */
 export function priceLocks(book, locks, prices, perpNames = book.coins, fine = null, asOf = Infinity) {
   const candidates = candidatesFor(book, perpNames);
-  // The finest prices a call can use: 5-minute ones for a recent short call while Hyperliquid has them.
+  // The finest prices a call can use: 5-minute ones for a recent short call, or one with exits, while Hyperliquid has them.
   const recent = (c) => !Number.isFinite(asOf) || c.exitAt > asOf - FINE_HISTORY;
   const gridFor = (c, coins) => {
-    if (fine && c.horizon < FINE_BELOW && recent(c) && coins.some((coin) => moveOf(fine, coin, c.entryAt, c.exitAt) != null)) return { p: fine, candles: "5m" };
+    if (fine && (c.horizon < FINE_BELOW || c.exits) && recent(c) && coins.some((coin) => moveOf(fine, coin, c.entryAt, c.exitAt) != null)) return { p: fine, candles: "5m" };
     return { p: prices, candles: "1h" };
   };
   // The open the exit is priced at, on a grid: until it has opened, the call isn't done.
@@ -173,16 +164,45 @@ export function priceLocks(book, locks, prices, perpNames = book.coins, fine = n
   return locks.map((c) => {
     if (c.status === "revealed") {
       const { p, candles } = gridFor(c, [c.coin]);
-      const move = moveOf(p, c.coin, c.entryAt, c.exitAt);
-      if (move == null && exitOpens(c, candles === "5m" ? 300 : HOUR) > asOf) return { ...c, status: "pending", note: "revealed; waiting for its exit price" };
-      if (move == null) return { ...c, status: "unscorable", note: "no Hyperliquid price for this window", ...worstPriced(gridFor(c, candidates), candidates, c) };
-      const r = netOf(c.side, move);
-      return { ...c, move, ret: r.net, fee: r.fee, entry: p.price(c.coin, c.entryAt), exit: p.price(c.coin, c.exitAt), candles, resolvedAt: c.exitAt };
+      const step = candles === "5m" ? 300 : HOUR;
+      const priced = c.exits ? pathPriced(p, c, step) : timePriced(p, c);
+      if (!priced && exitOpens(c, step) > asOf) return { ...c, status: "pending", note: "revealed; waiting for its exit price" };
+      if (!priced) return { ...c, status: "unscorable", note: "no Hyperliquid price for this window", ...worstPriced(gridFor(c, candidates), candidates, c) };
+      const r = netOf(c.side, priced.move);
+      return { ...c, ...priced, ret: r.net, fee: r.fee, candles };
     }
+    if (c.saltUnread) return { ...c, note: "no salt in its reveal matches the call, so its exits can't be read", ...worstPriced(gridFor(c, candidates), candidates, c) };
     if (c.status === "unscorable") return { ...c, note: `Hyperliquid lists no perp "${c.symbol}"`, ...worstPriced(gridFor(c, candidates), candidates, c) };
     if (c.status === "withheld") return { ...c, ...worstPriced(gridFor(c, candidates), candidates, c), resolvedAt: c.withheldAfter };
     return { ...c };
   });
+}
+
+/** A call without exits: entry and exit at the opens at or after entryAt and entryAt + horizon. */
+function timePriced(p, c) {
+  const move = moveOf(p, c.coin, c.entryAt, c.exitAt);
+  return move == null ? null : { move, entry: p.price(c.coin, c.entryAt), exit: p.price(c.coin, c.exitAt), resolvedAt: c.exitAt };
+}
+
+/**
+ * A call with exits: along its candles to the first level touched, or its
+ * horizon (callbook-exits.js exitPath). The move is the fill against the entry
+ * open, with the funding paid between them, as for any call.
+ */
+function pathPriced(p, c, step) {
+  const path = exitPath({ rows: p.candles(c.coin), step, side: c.side, entryAt: c.entryAt, exitAt: c.exitAt, stop: c.exits.stop?.value ?? null, target: c.exits.target?.value ?? null });
+  if (!path) return null;
+  // Funding as a factor of the raw price: index / open at a candle, carried from the entry's when the exit's isn't loaded.
+  const factor = (t) => { const i = p.index(c.coin, t), o = p.price(c.coin, t); return i > 0 && o > 0 ? i / o : null; };
+  const fIn = factor(path.entryT);
+  if (fIn == null) return null;
+  const fOut = factor(path.exitT) ?? fIn;
+  return {
+    move: (path.exit * fOut) / (path.entry * fIn) - 1, entry: path.entry, exit: path.exit,
+    closedAt: path.exitT, exitReason: path.reason, resolvedAt: Math.max(path.exitT, c.entryAt),
+    // Skill judges the call, not its exits: the coin's move over the whole horizon.
+    horizonMove: moveOf(p, c.coin, c.entryAt, c.exitAt),
+  };
 }
 
 /** A hidden or unknown call's worst: its own horizon, on the candidate coins, either side. */
@@ -212,6 +232,17 @@ export function driftRates(prices, coins, from, to) {
 
 /** The move holding a coin would have made over `horizon` seconds at a driftRates rate. */
 export const expectedMove = (rate, horizon) => Math.expm1((rate ?? 0) * horizon);
+
+/** How long a call was held: to its stop or target if one closed it, else its horizon. */
+const heldOf = (c) => (c.closedAt != null ? Math.max(0, c.closedAt - c.entryAt) : c.horizon);
+
+/**
+ * A call with exits is right or wrong on the coin's move over its whole
+ * horizon, as if it had none: a tight target and a wide stop would otherwise
+ * "win" most of the time while predicting nothing. Exits change its return
+ * only. Null for a call without exits (judged as before).
+ */
+const skillHit = (c, drift) => (c.exits && c.horizonMove != null ? hitOf(c.side, c.horizonMove, expectedMove(drift.get(c.coin), c.horizon)) : null);
 
 // ------------------------------------------------------------------ the caller score
 
@@ -275,7 +306,8 @@ export function scoreCaller(book, priced, { asOf, drift = new Map() }) {
   const maxDrawdown = curveDrawdown(rets);
   const outcomes = resolved.map((c) => {
     const real = c.status === "revealed";
-    return { side: real ? c.side : 0, ret: c.ret, move: real ? c.move : 0, expected: real ? expectedMove(drift.get(c.coin), c.horizon) : 0 };
+    // A call that closed early at a stop or target is held only until then.
+    return { side: real ? c.side : 0, ret: c.ret, move: real ? c.move : 0, expected: real ? expectedMove(drift.get(c.coin), heldOf(c)) : 0 };
   });
   const score = callerScore({ days, outcomes, maxDrawdown });
   const pick = (c) => (c ? { callId: c.callId, coin: c.coin ?? c.worst?.coin ?? null, side: c.side ?? c.worst?.side ?? null, ret: round(c.ret, 5), status: c.status } : null);
@@ -299,13 +331,14 @@ export function scoreCaller(book, priced, { asOf, drift = new Map() }) {
     maxDrawdown,
     avgHorizonHours: revealed.length ? mean(revealed.map((c) => c.horizon)) / HOUR : null,
     // Short calls priced on hourly candles because Hyperliquid no longer serves their 5-minute ones.
-    shortOnHourly: priced.filter((c) => c.horizon < FINE_BELOW && c.candles === "1h").length,
+    // ...and calls with exits, whose path then runs on hourly candles.
+    shortOnHourly: priced.filter((c) => (c.horizon < FINE_BELOW || c.exits) && c.candles === "1h").length,
     best: pick(byRet[byRet.length - 1]),
     worst: pick(byRet[0]),
   };
   // The skill score: each resolved call right or wrong against its coin's drift; hidden and unpriced ones wrong.
   const skill = skillScore(resolved.map((c, i) => ({
-    start: c.entryAt, end: c.exitAt, hit: c.status === "revealed" ? hitOf(c.side, c.move, outcomes[i].expected) : 0,
+    start: c.entryAt, end: c.exitAt, hit: c.status === "revealed" ? skillHit(c, drift) ?? hitOf(c.side, c.move, outcomes[i].expected) : 0,
   })), { recordDays: days });
   return { periods: priced, metrics, score, skill, curve: curveOf(resolved, first, asOf) };
 }
@@ -342,7 +375,9 @@ export function buildCallerReport({ chainId, callbook, book, asOf, scored }) {
     },
     prices: { source: "hyperliquid", interval: "1h; 5m for calls under 1h", price: "candle open", costs: "hyperliquid-funding", fees: VANTA.fees, reference: REFERENCE_SET_NAME, referenceSet: book.anyCoin ? REFERENCE_SET : null },
     // [callId, status, coin, side, horizon, net return, candles ("5m" or "1h") it was priced on]
-    calls: scored.periods.map((c) => [c.callId, c.status, c.coin ?? c.worst?.coin ?? null, c.side ?? c.worst?.side ?? null, c.horizon ?? c.worst?.horizon ?? null, c.ret == null ? null : round(c.ret), c.candles ?? null]),
+    // and, for a call with exits, [stop, target, why it closed ("stop", "target" or "time"), when]
+    calls: scored.periods.map((c) => [c.callId, c.status, c.coin ?? c.worst?.coin ?? null, c.side ?? c.worst?.side ?? null, c.horizon ?? c.worst?.horizon ?? null, c.ret == null ? null : round(c.ret), c.candles ?? null,
+      ...(c.exits ? [[c.exits.stop?.text ?? null, c.exits.target?.text ?? null, c.exitReason ?? null, c.closedAt ?? null]] : [])]),
     metrics: Object.fromEntries(Object.entries(scored.metrics).map(([k, v]) => [k, typeof v === "number" ? round(v) : v])),
     score: Object.fromEntries(Object.entries(scored.score).map(([k, v]) => [k, typeof v === "number" ? round(v) : v])),
     skill: scored.skill ?? null,
@@ -378,10 +413,10 @@ export async function evaluateCaller({ chain, book, source, asOf, reportBase, re
     const data = await source.load([...coins], first - DAY, asOf + HOUR, "1h");
     prices = priceBook({ ...data, interval: "1h" }, { useFunding: true, openBy: asOf });
   }
-  // Short calls get 5-minute prices too: only their coins (and the candidates, for a
-  // hidden one), only over their own span, and only as far back as Hyperliquid keeps them.
+  // Short calls and calls with exits get 5-minute prices too: only their coins (and the candidates,
+  // for a hidden one), only over their own span, and only as far back as Hyperliquid keeps them.
   let fine = null;
-  const short = locks.filter((c) => c.status !== "pending" && c.horizon < FINE_BELOW && c.exitAt > asOf - FINE_HISTORY);
+  const short = locks.filter((c) => c.status !== "pending" && (c.horizon < FINE_BELOW || c.exits) && c.exitAt > asOf - FINE_HISTORY);
   if (short.length) {
     const fineCoins = new Set(short.map((c) => c.coin).filter(Boolean));
     if (short.some((c) => c.status !== "revealed")) for (const c of candidatesFor(book, names)) fineCoins.add(c);
@@ -404,6 +439,7 @@ function callOut(c) {
   const o = { callId: c.callId, status: c.status, hash: c.hash, lockedAt: c.lockedAt, entryAt: c.entryAt, lockTx: c.lockTx };
   if (c.horizon != null) Object.assign(o, { horizon: c.horizon, exitAt: c.exitAt, coin: c.coin, symbol: c.symbol, side: c.side, revealedAt: c.revealedAt, revealTx: c.revealTx });
   if (c.status === "revealed") Object.assign(o, { entry: c.entry, exit: c.exit, move: round(c.move, 5) });
+  if (c.exits) Object.assign(o, { stop: c.exits.stop?.text ?? null, target: c.exits.target?.text ?? null, exitReason: c.exitReason ?? null, closedAt: c.closedAt ?? null });
   if (c.ret != null) Object.assign(o, { ret: round(c.ret, 5), fee: round(c.fee, 5) });
   if (c.worst) o.worst = c.worst;
   if (c.note) o.note = c.note;
@@ -447,7 +483,13 @@ export function callerToApi({ chain, ev, validator, asOf, cards = null }) {
   const feed = [];
   for (const c of scored.periods) {
     feed.push({ ...base, t: c.lockedAt, kind: "locked", callId: c.callId, hash: c.hash, tx: c.lockTx });
-    if (c.revealedAt != null) feed.push({ ...base, t: c.revealedAt, kind: "revealed", callId: c.callId, hash: c.hash, coin: c.coin ?? c.symbol, side: c.side, horizon: c.horizon, ret: round(c.ret, 5), tx: c.revealTx, ...(c.status === "unscorable" ? { note: "unscorable" } : {}) });
+    if (c.revealedAt != null) {
+      feed.push({
+        ...base, t: c.revealedAt, kind: "revealed", callId: c.callId, hash: c.hash, coin: c.coin ?? c.symbol, side: c.side, horizon: c.horizon, ret: round(c.ret, 5), tx: c.revealTx,
+        ...(c.status === "unscorable" ? { note: "unscorable" } : {}),
+        ...(c.exits ? { stop: c.exits.stop?.text ?? null, target: c.exits.target?.text ?? null, exitReason: c.exitReason ?? null } : {}),
+      });
+    }
     if (c.status === "withheld") feed.push({ ...base, t: c.withheldAfter, kind: "missed", note: "withheld", callId: c.callId, hash: c.hash, ret: round(c.ret, 5), tx: null });
   }
   for (const r of req ? chain.validation.responses.get(req.requestHash) ?? [] : []) {

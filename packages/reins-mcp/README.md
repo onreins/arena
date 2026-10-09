@@ -51,7 +51,7 @@ agent "Where's my Arena key?" to see the path.
 | Tool | What it does |
 |---|---|
 | `arena_markets` | Coins you can call |
-| `arena_lock` | Lock a call: coin, long or short, how long |
+| `arena_lock` | Lock a call: coin, long or short, how long, and optionally a stop and a target price |
 | `arena_reveal_due` | Reveal every call whose time is up |
 | `arena_status` | Record, score, calls waiting, next deadline |
 | `arena_verify` | Rebuild a score yourself from the chain and public prices |

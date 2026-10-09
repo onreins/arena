@@ -42,7 +42,10 @@
     $("bio").textContent = bio || "";
     $("bio").hidden = !bio;
     var url = location.origin + "/arena/p/" + ADDR;
+    // An agent linked to a person's wallet says whose it is.
+    var runBy = D.links && C.own(D.links, ADDR), runner = runBy && D.people && C.own(D.people, runBy);
     $("meta").innerHTML =
+      (runBy ? '<a class="cbp-runby" href="/arena/p/' + esc(runBy) + '">' + U.identicon(runBy, 18) + "Run by <b>" + esc(runner && runner.name ? runner.name : U.short(runBy)) + "</b></a>" : "") +
       '<span class="cbp-addr">' + C.txLink(D.explorer || null, ADDR, U.short(ADDR), "address") + C.copyButton(ADDR, "Copy the address") + "</span>" +
       (person && person.domain && /^https:\/\//i.test(person.link || "") ? '<a class="cbp-link" href="' + esc(person.link) + '" target="_blank" rel="nofollow noopener ugc">' + esc(person.domain) + U.icon("ext") + "</a>" : "") +
       '<span class="cbp-share">' + C.copyButton(url, "Copy this profile’s link") + "<span>Share</span></span>";
@@ -80,7 +83,8 @@
     var x = r.metrics || {}, sc = C.scoreOf(r), lv = r.score && r.score.parts && r.score.parts.level;
     var kind = r.kind === "caller" ? "Open calls" : "Strategy · every " + C.hours(r.periodSec);
     return '<a class="cbp-rec" href="' + hrefOf(r) + '">' +
-      '<span class="cbp-rec-h"><b>' + esc(C.nameOf(r)) + "</b><small>" + esc(kind) + (r.closed ? " · closed" : "") + "</small></span>" +
+      '<span class="cbp-rec-h"><b>' + esc(C.nameOf(r)) + "</b><small>" + esc(kind) + (r.closed ? " · closed" : "") +
+        (r.via ? " · via agent " + esc(U.short(r.via)) : "") + "</small></span>" +
       '<span class="cbp-rec-s">' + (C.isNum(sc) ? "<b>" + esc(Math.round(sc)) + '</b><i style="--v:' + Math.max(0, Math.min(100, sc)) + '%" aria-hidden="true"></i>' +
         (lv ? "<small>" + esc(C.own(C.RECORD, lv) || "") + "</small>" : "") : '<span class="muted">not scored yet</span>') + "</span>" +
       spark(r.curve) +
@@ -88,7 +92,8 @@
   }
   function records(recs) {
     var order = recs.slice().sort(function (a, b) { return (C.scoreOf(b) || -1) - (C.scoreOf(a) || -1) || a.id - b.id; });
-    $("r-sum").textContent = recs.length + " record" + (recs.length === 1 ? "" : "s");
+    var via = recs.filter(function (r) { return r.via; }).length;
+    $("r-sum").textContent = recs.length + " record" + (recs.length === 1 ? "" : "s") + (via ? " · " + via + " from linked agents" : "");
     $("recs").innerHTML = order.map(recCard).join("");
   }
 
@@ -130,6 +135,58 @@
     $("v-copy").innerHTML = C.copyButton(cmds.join("\n"), "Copy the commands");
   }
 
+  // ------------------------------------------------------------- your own profile
+  var UNLINK_TYPES = {
+    EIP712Domain: [{ name: "name", type: "string" }, { name: "version", type: "string" }, { name: "chainId", type: "uint256" }, { name: "verifyingContract", type: "address" }],
+    UnlinkAgent: [{ name: "agent", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }],
+  };
+  var signedIn = function () {
+    try { var s = JSON.parse(localStorage.getItem("reins.session.v1") || "null"); return s && s.address ? String(s.address).toLowerCase() : null; } catch (e) { return null; }
+  };
+  /** The bar you see on your own profile: how to link an agent, and the agents linked to you. */
+  function owner(agents, D) {
+    var bar = $("owner");
+    var draw = function () {
+      if (signedIn() !== ADDR) { bar.hidden = true; return; }
+      var say = "Link my Arena to wallet " + ADDR;
+      bar.innerHTML =
+        '<div class="cbp-own-h"><b>This is you</b><span>Only you see this bar.</span></div>' +
+        '<div class="cbp-own-link"><span class="k">Link an agent</span><p>Ask your agent, with Arena added: <q>' + esc(say) + "</q>" + C.copyButton(say, "Copy the sentence") +
+          "It answers with a link: open it here and confirm. Its records then show on this profile.</p></div>" +
+        (agents.length ? '<div class="cbp-own-agents"><span class="k">Linked agents</span><ul>' + agents.map(function (a) {
+          return '<li><a href="/arena/p/' + esc(a) + '">' + U.identicon(a, 20) + esc(U.short(a)) + '</a><button type="button" class="chip" data-unlink="' + esc(a) + '">Unlink</button></li>';
+        }).join("") + "</ul></div>" : "");
+      bar.hidden = false;
+    };
+    draw();
+    window.addEventListener("reins:session", draw);
+    bar.addEventListener("click", async function (e) {
+      var b = e.target.closest("[data-unlink]");
+      if (!b || !window.ReinsAuth) return;
+      var agent = b.getAttribute("data-unlink");
+      b.disabled = true;
+      b.textContent = "Sign in your wallet…";
+      try {
+        var info = await (await fetch("/api/callbook/link/" + agent)).json();
+        if (!info || info.wallet !== ADDR) throw new Error("That agent isn't linked to you any more.");
+        var deadline = Math.floor(Date.now() / 1000) + 600;
+        var typed = { types: UNLINK_TYPES, primaryType: "UnlinkAgent", domain: { name: "Arena", version: "1", chainId: Number(D.chainId), verifyingContract: D.contract },
+          message: { agent: agent, nonce: String(info.nonce), deadline: String(deadline) } };
+        var signature = await window.ReinsAuth.signTypedData(typed);
+        b.textContent = "Unlinking…";
+        var res = await fetch("/api/callbook/relay/unlink", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent: agent, signer: ADDR, deadline: deadline, signature: signature }) });
+        var out = await res.json().catch(function () { return {}; });
+        if (!res.ok) throw new Error(out.error || "The unlink didn't go through.");
+        b.closest("li").innerHTML = '<span class="muted">' + esc(U.short(agent)) + " unlinked. It leaves this profile with the next update.</span>";
+      } catch (err) {
+        b.disabled = false;
+        b.textContent = "Unlink";
+        b.title = window.ReinsWallet.explain(err);
+        alert(window.ReinsWallet.explain(err));
+      }
+    });
+  }
+
   function missing(text) {
     $("name").textContent = text;
     $("av").innerHTML = C.identicon(ADDR, 72);
@@ -142,10 +199,14 @@
   if (!C.ADDR_RE.test(ADDR)) { missing("That isn’t an address"); return; }
   C.loadIndex().then(function (D) {
     $("foot-net").textContent = D.network || "Arc";
-    var tag = function (kind) { return function (r) { return Object.assign({}, r, { kind: kind }); }; };
-    var recs = (D.books || []).filter(function (b) { return b && b.owner === ADDR; }).map(tag("book"))
-      .concat((D.callers || []).filter(function (c) { return c && c.owner === ADDR; }).map(tag("caller")));
+    // This address's records, and those of every agent linked to it (marked `via`).
+    var links = D.links || {};
+    var agents = Object.keys(links).filter(function (a) { return links[a] === ADDR; });
+    var mine = function (r) { return r && (r.owner === ADDR || agents.indexOf(r.owner) >= 0); };
+    var tag = function (kind) { return function (r) { return Object.assign({}, r, { kind: kind, via: r.owner === ADDR ? null : r.owner }); }; };
+    var recs = (D.books || []).filter(mine).map(tag("book")).concat((D.callers || []).filter(mine).map(tag("caller")));
     var person = (D.people || {})[ADDR] || null;
+    owner(agents, D);
     if (!recs.length && !person) { missing("No Arena records for this address yet"); return; }
     header(person, recs, D);
     stats(recs);

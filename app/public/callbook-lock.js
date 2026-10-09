@@ -1,4 +1,7 @@
-/* Lock a call from the Arena tab: coin, up or down, how long, one button.
+/* Lock a call from the Arena tab: coin, long or short, how long, and
+ * optionally a stop and a target price, sealed in the salt
+ * (app/verify/callbook-exits.js). A call with them is revealed only from the
+ * browser that kept it: its prices can't be searched for.
  *
  * The flow (live mode only): connect the wallet, read the account's nonce from
  * the Arena contract, sign a fixed message to make the salt (see
@@ -19,7 +22,7 @@
  * signed or sent. */
 (function () {
   "use strict";
-  var U = window.ReinsUI, C = window.Callbook, W = window.ReinsWallet, K = window.CallbookCrypto, esc = U.esc;
+  var U = window.ReinsUI, C = window.Callbook, K = window.CallbookCrypto, esc = U.esc;
   var $ = function (id) { return document.getElementById(id); };
   if (!$("lock")) return;
 
@@ -31,7 +34,7 @@
 
   var get = function (k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
   var put = function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage off: the call can still be recovered */ } };
-  var st = { coin: get(COIN_KEY, "BTC"), side: 1, horizon: 14400, markets: FALLBACK.map(function (n) { return { name: n }; }), busy: false };
+  var st = { coin: get(COIN_KEY, "BTC"), side: 1, horizon: 86400, markets: FALLBACK.map(function (n) { return { name: n }; }), busy: false };
   var D = null;
 
   $("ic-down").innerHTML = U.icon("down");
@@ -43,14 +46,53 @@
   };
   var entryAt = function () { var t = Math.floor(Date.now() / 1000); return Math.ceil((t + LEAD) / UNIT) * UNIT; };
   function preview() {
-    var e = entryAt(), r = e + st.horizon, long = st.horizon >= 86400;
-    $("lock-prev").innerHTML = "Entry <b>" + esc(utc(e)) + "</b> · reveals <b>" + esc(utc(r, long)) + "</b> · hidden until then";
+    var e = entryAt(), r = e + st.horizon, long = st.horizon >= 86400, x = exitsIn();
+    var levels = [x.stop ? "stop <b>" + esc(x.stop) + "</b>" : "", x.target ? "target <b>" + esc(x.target) + "</b>" : ""].filter(Boolean).join(" or ");
+    $("lock-prev").innerHTML = "Entry <b>" + esc(utc(e)) + "</b> · " + (levels && !exitsProblem() ? "closes at " + levels + ", or by <b>" + esc(utc(r, long)) + "</b>" :
+      "reveals <b>" + esc(utc(r, long)) + "</b>") + " · hidden until then";
   }
   function pick(group, attr, value) {
     Array.prototype.forEach.call($(group).querySelectorAll("button"), function (b) { b.setAttribute("aria-pressed", String(b.getAttribute(attr) === String(value))); });
   }
-  $("dir").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; st.side = +b.getAttribute("data-side"); pick("dir", "data-side", st.side); });
-  $("hz").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; st.horizon = +b.getAttribute("data-h"); pick("hz", "data-h", st.horizon); preview(); });
+  $("dir").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; st.side = +b.getAttribute("data-side"); pick("dir", "data-side", st.side); exitsChanged(); });
+  $("hz").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; st.horizon = +b.getAttribute("data-h"); pick("hz", "data-h", st.horizon); exitsChanged(); });
+
+  // ------------------------------------------------------------- stop and target
+  // Optional prices, sealed in the call's salt (CallbookCrypto.withExits), checked like the SDK checks an agent's.
+  var EXITS_NOTE = $("ex-note").textContent;
+  var pxOf = function () { var m = st.markets.filter(function (x) { return x.name === st.coin; })[0]; return m && m.px > 0 ? m.px : null; };
+  function exitsIn() {
+    var v = function (id) { var s = $(id).value.trim().replace(/[$,\s]/g, ""); return s || null; };
+    return { stop: v("ex-stop"), target: v("ex-target") };
+  }
+  /** Why the stop and target can't be used, or null (including when there are none). */
+  function exitsProblem() {
+    var x = exitsIn();
+    if (!x.stop && !x.target) return null;
+    try {
+      if (x.stop) K.sealedPrice(x.stop);
+      if (x.target) K.sealedPrice(x.target);
+    } catch (err) {
+      return "Write prices as plain numbers, like 82000 or 0.0042.";
+    }
+    return K.exitsProblem({ side: st.side, stop: x.stop, target: x.target, price: pxOf(), horizon: st.horizon, coin: st.coin });
+  }
+  // Suggested levels a few percent either side of the price: a starting point, never filled in for you.
+  var round4 = function (n) { return String(Number(n.toPrecision(4))); };
+  function exitHints() {
+    var px = pxOf(), up = st.side > 0;
+    $("ex-stop").placeholder = px ? "e.g. " + round4(px * (up ? 0.97 : 1.03)) : "e.g. a price " + (up ? "below" : "above") + " now";
+    $("ex-target").placeholder = px ? "e.g. " + round4(px * (up ? 1.05 : 0.95)) : "e.g. a price " + (up ? "above" : "below") + " now";
+  }
+  function exitsChanged() {
+    var problem = exitsProblem();
+    $("ex-note").textContent = problem || EXITS_NOTE;
+    $("ex-note").classList.toggle("bad", !!problem);
+    exitHints();
+    preview();
+  }
+  $("ex-stop").addEventListener("input", exitsChanged);
+  $("ex-target").addEventListener("input", exitsChanged);
   preview();
   setInterval(preview, 15000);
 
@@ -62,6 +104,7 @@
     var m = st.markets.filter(function (x) { return x.name === name; })[0] || {};
     $("coin-sym").textContent = name;
     $("coin-px").textContent = m.px ? "$" + fmtPx(m.px) : "";
+    exitsChanged();
   }
   function listCoins() {
     var q = $("coin-q").value.trim().toLowerCase();
@@ -131,7 +174,7 @@
   function busy(on, label) {
     st.busy = on;
     $("lock-btn").disabled = on;
-    $("lock-btn").textContent = on ? label || "Working…" : "Lock call";
+    $("lock-btn").textContent = on ? label || "Working…" : "Lock call to my record";
   }
 
   // ------------------------------------------------------------- storage
@@ -161,14 +204,18 @@
     for (var i = 0; i < b.length; i++) h += (b[i] < 16 ? "0" : "") + b[i].toString(16);
     return h;
   }
+  /**
+   * Put the wallet on Arena's chain, adding Arc (testnet or mainnet) when it
+   * doesn't know it: sign-in's switch (auth.js, loaded on every page by ui.js).
+   */
   async function onChain() {
     var want = Number(D.chainId);
     if (parseInt(await req("eth_chainId"), 16) === want) return;
     try {
+      if (window.ReinsAuth && window.ReinsAuth.onChain) return await window.ReinsAuth.onChain(eth(), want);
       await req("wallet_switchEthereumChain", [{ chainId: "0x" + want.toString(16) }]);
     } catch (err) {
-      var cfg = await W.config().catch(function () { return {}; });
-      if (err && err.code === 4902 && cfg.chainId === want) return W.ensureChain();
+      if (err && err.code === 4001) throw err;
       throw new Error("Switch your wallet to " + (D.network || "chain " + want) + ", then try again.");
     }
   }
@@ -192,9 +239,15 @@
   // ------------------------------------------------------------- lock
   async function lock() {
     if (st.busy) return;
+    var problem = exitsProblem(), x = exitsIn();
+    if (problem) { $("exits").open = true; return say(esc(problem), "bad"); }
     if (!D || D.mode !== "live") return say(NOT_LIVE, "calm");
+    // Locking signs with a browser wallet; a Google account (a Circle wallet) covers your profile and linking, not this yet.
+    var who = window.ReinsAuth && window.ReinsAuth.session && window.ReinsAuth.session();
+    if (who && who.kind === "google") return say("Locking a call needs a browser wallet, such as MetaMask or Rabby, for now. Your Google sign-in covers your profile and linking an agent.", "calm");
     if (!eth()) return say("To lock a call you need a browser wallet, such as MetaMask or Rabby.", "calm");
     var call = { coin: st.coin, side: st.side, horizon: st.horizon };
+    var exits = x.stop || x.target ? { stop: x.stop && K.sealedPrice(x.stop), target: x.target && K.sealedPrice(x.target) } : null;
     try {
       say("");
       busy(true, "Connecting…");
@@ -203,7 +256,8 @@
       var nonce = await view("nonces", [account]);
       busy(true, "Sign 1 of 2…");
       say("Sign the first message to make the secret that hides your call. It’s free and sends nothing.");
-      var salt = await saltFor(account, nonce);
+      // The stop and target ride in the salt: fixed now, hidden until the reveal.
+      var salt = exits ? K.withExits(await saltFor(account, nonce), exits) : await saltFor(account, nonce);
       var lockReq = K.buildLock({ chainId: D.chainId, callbook: D.contract, account: account, nonce: nonce, coin: call.coin, side: call.side, horizon: call.horizon, salt: salt,
         deadline: Math.floor(Date.now() / 1000) + 600 });
       busy(true, "Sign 2 of 2…");
@@ -216,10 +270,13 @@
       if (!r.ok) return say("Couldn’t lock that call: " + esc(r.body.error || "the relay said no") + ". Nothing was locked.", "bad");
       var e = Number(r.body.entryAt) || entryAt();
       remember({ chainId: Number(D.chainId), callbook: String(D.contract).toLowerCase(), account: account, bookId: String(r.body.bookId), callId: Number(r.body.callId),
-        nonce: Number(r.body.nonce != null ? r.body.nonce : nonce), coin: call.coin, side: call.side, horizon: call.horizon, salt: salt, entryAt: e, lockedAt: Math.floor(Date.now() / 1000), revealed: false });
+        nonce: Number(r.body.nonce != null ? r.body.nonce : nonce), coin: call.coin, side: call.side, horizon: call.horizon, salt: salt, entryAt: e, lockedAt: Math.floor(Date.now() / 1000), revealed: false,
+        exits: exits });
       var href = "/arena-caller?c=" + encodeURIComponent(r.body.bookId);
-      say("<b>Locked ✓</b> " + esc(call.coin) + " " + (call.side > 0 ? "up" : "down") + ", reveals " + esc(utc(e + call.horizon, call.horizon >= 86400)) +
-        '. <a href="' + esc(href) + '">See your record →</a>', "ok");
+      var levels = exits ? [exits.stop ? "stop " + exits.stop : "", exits.target ? "target " + exits.target : ""].filter(Boolean).join(", ") : "";
+      say("<b>Locked ✓</b> " + esc(call.coin) + " " + (call.side > 0 ? "long" : "short") + (levels ? " with " + esc(levels) : "") +
+        ", reveals " + esc(utc(e + call.horizon, call.horizon >= 86400)) + '. <a href="' + esc(href) + '">See your record →</a>' +
+        (exits ? "<br><small>Note its stop and target: this browser keeps them to reveal it. On another device, type them in above and use “Reveal calls locked on another device”.</small>" : ""), "ok");
       showMine();
       schedule();
     } catch (err) {
@@ -284,20 +341,25 @@
       var open = (caller.calls || []).filter(function (c) { return c.status === "pending" && known.indexOf(String(bookId) + ":" + c.callId) < 0; });
       if (!open.length) return say("Nothing to recover: every hidden call of this wallet is already known here.", "calm");
       var found = 0, coins = st.markets.map(function (m) { return m.name; });
+      var x = exitsIn(), typed = null;
+      try { typed = x.stop || x.target ? { stop: x.stop && K.sealedPrice(x.stop), target: x.target && K.sealedPrice(x.target) } : null; } catch (e) { /* not prices: tried without */ }
       for (var i = 0; i < open.length; i++) {
         var lk = await view("lockedOf", [bookId, open[i].callId]);
         if (lk.revealed) continue;
         say("Sign to recreate the secret for call " + (i + 1) + " of " + open.length + ". It’s free and sends nothing.");
         var salt = await saltFor(account, lk.nonce);
         var known = Number(open[i].horizon) || Number(lk.horizon) || 0;
-        var hit = K.recoverSymbolCall({ hash: lk.callHash, callbook: D.contract, chainId: D.chainId, account: account, nonce: lk.nonce, salt: salt, coins: coins, horizons: known ? [known] : HORIZONS });
+        var find = function (s) { return K.recoverSymbolCall({ hash: lk.callHash, callbook: D.contract, chainId: D.chainId, account: account, nonce: lk.nonce, salt: s, coins: coins, horizons: known ? [known] : HORIZONS }); };
+        var hit = find(salt);
+        // A call with a stop or target: its prices can't be guessed, but the ones typed in the form above can be tried.
+        if (!hit && typed) { var sealed = K.withExits(salt, typed); hit = find(sealed); if (hit) salt = sealed; }
         if (!hit) continue;
         found++;
         remember({ chainId: Number(D.chainId), callbook: String(D.contract).toLowerCase(), account: account, bookId: String(bookId), callId: Number(open[i].callId),
           nonce: lk.nonce, coin: hit.coin, side: hit.side, horizon: hit.horizon, salt: salt, entryAt: lk.entryAt, revealed: false });
       }
       say(found ? "Found " + found + (found === 1 ? " call" : " calls") + ". Any that are due are being revealed now." :
-        "None of the hidden calls matched this wallet’s secret, so they were locked another way (for example by an agent with its own key).", found ? "ok" : "calm");
+        "None of the hidden calls matched this wallet’s secret. A call with a stop or target needs them typed in above first; otherwise it was locked another way (for example by an agent with its own key).", found ? "ok" : "calm");
       showMine();
       revealDue();
     } catch (err) {

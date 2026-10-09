@@ -39,8 +39,9 @@ const localChain = defineChain({
 
 const NETWORKS = {
   local: { chain: localChain, rpc: LOCAL_RPC, identity: null },
-  testnet: { chain: arcTestnet, rpc: undefined, identity: REGISTRIES[arcTestnet.id].identity },
-  mainnet: { chain: arc, rpc: undefined, identity: REGISTRIES[arc.id].identity },
+  // ARENA_RPC (as the app uses it) picks another endpoint when the chain's default one is rate-limited.
+  testnet: { chain: arcTestnet, rpc: process.env.ARENA_RPC || process.env.CALLBOOK_RPC || undefined, identity: REGISTRIES[arcTestnet.id].identity },
+  mainnet: { chain: arc, rpc: process.env.ARENA_RPC || process.env.CALLBOOK_RPC || undefined, identity: REGISTRIES[arc.id].identity },
 };
 
 function fail(message) {

@@ -50,6 +50,7 @@ export const RELAY_LIMITS = Object.freeze({
   locksPerAccountHour: 30,
   sealsPerBookHour: 30,
   profilesPerAccountDay: 5,
+  linksPerAgentDay: 5,
   txPerHour: 600,
   requestsPerIpHour: 120,
   failuresPerIpHour: 60,
@@ -90,7 +91,14 @@ export const PROFILE_TYPES = {
     { name: "bio", type: "string" }, { name: "link", type: "string" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" },
   ],
 };
-export const SEAL_TYPES = { SealCall: [{ name: "bookId", type: "uint256" }, { name: "p", type: "uint64" }, { name: "callHash", type: "bytes32" }, { name: "deadline", type: "uint256" }] };
+export const LINK_TYPES = {
+  LinkAgent: [
+    { name: "agent", type: "address" }, { name: "wallet", type: "address" },
+    { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" },
+  ],
+};
+export const UNLINK_TYPES = { UnlinkAgent: [{ name: "agent", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] };
+export const SEAL_TYPES ={ SealCall: [{ name: "bookId", type: "uint256" }, { name: "p", type: "uint64" }, { name: "callHash", type: "bytes32" }, { name: "deadline", type: "uint256" }] };
 
 const asBigInt = (x, what) => {
   if (typeof x === "number" && !Number.isSafeInteger(x)) throw refuse(`${what} must be an integer`);
@@ -356,5 +364,83 @@ export function createRelayer({ publicClient, wallet, callbook, abi, chainId, li
     });
   }
 
-  return { lock, seal, reveal, profile, limits: L, address: wallet.account.address, queued: () => waiting };
+  const addressOf = (x, what) => {
+    if (!isAddress(x ?? "")) throw refuse(`${what} must be an address`);
+    return getAddress(x);
+  };
+
+  /** The agent's half of a link request, checked: { agent, wallet, deadline, nonce }. Sends nothing. */
+  async function agentHalf(body) {
+    const agent = addressOf(body.agent, "agent");
+    const wallet = addressOf(body.wallet, "wallet");
+    if (agent === wallet) throw refuse("an agent can't link to itself");
+    const agentSig = checkSig(body.agentSig);
+    const deadline = checkDeadline(body.deadline);
+    if (!(await isPlainKey(agent))) throw refuse("the agent must be a plain key, not a contract");
+    // Said up front, so the person isn't asked to sign for a link the relayer will refuse.
+    if (!(await isPlainKey(wallet))) throw refuse("this wallet is a contract wallet; the relayer only takes plain-key wallets, so link it by sending linkBySig yourself");
+    // Like a name, a link only means something beside a record, so we don't pay to link an agent with none.
+    if ((await read("booksOf", [agent])).length === 0) throw refuse("this agent has no record yet: lock a call first, then link it");
+    const nonce = await read("linkNonces", [agent]);
+    const message = { agent, wallet, nonce, deadline };
+    if (!(await signedBy(agent, { domain, types: LINK_TYPES, primaryType: "LinkAgent", message, signature: agentSig }))) {
+      throw new RelayError(401, "this link request isn't signed by the agent, or it was already used");
+    }
+    return { agent, wallet, deadline, nonce, agentSig, message };
+  }
+
+  /** POST /relay/link-check: { agent, wallet, deadline, agentSig } -> { agent, wallet, deadline, nonce, linkedTo } (nothing is sent). */
+  async function linkCheck(body = {}, { ip } = {}) {
+    return guarded(ip, null, async () => {
+      const h = await agentHalf(body);
+      const current = await read("walletOf", [h.agent]);
+      return { agent: h.agent, wallet: h.wallet, deadline: String(h.deadline), nonce: String(h.nonce), linkedTo: current === ZERO ? null : current };
+    });
+  }
+
+  /** POST /relay/link: { agent, wallet, deadline, agentSig, walletSig } -> { agent, wallet, txHash } */
+  async function link(body = {}, { ip } = {}) {
+    const agentAddr = isAddress(body.agent ?? "") ? getAddress(body.agent) : null;
+    return guarded(ip, agentAddr, async (ctx) => {
+      const h = await agentHalf(body);
+      const walletSig = checkSig(body.walletSig);
+      if (!(await isPlainKey(h.wallet))) throw refuse("the relayer only takes plain-key wallets, not contract wallets; send it directly");
+      if (!(await signedBy(h.wallet, { domain, types: LINK_TYPES, primaryType: "LinkAgent", message: h.message, signature: walletSig }))) {
+        throw new RelayError(401, "the wallet's signature doesn't match this link request");
+      }
+      ctx.verified();
+      const { hash } = await submit("linkBySig", [h.agent, h.wallet, h.deadline, h.agentSig, walletSig], {
+        bucket: ctx.bucket,
+        onSimulated: () => limit(`link:${h.agent.toLowerCase()}`, L.linksPerAgentDay, `this agent has changed its link ${L.linksPerAgentDay} times today; try again tomorrow`, DAY),
+      });
+      return { agent: h.agent, wallet: h.wallet, txHash: hash };
+    });
+  }
+
+  /** POST /relay/unlink: { agent, signer, deadline, signature } -> { agent, txHash }; signer is the agent or its wallet. */
+  async function unlink(body = {}, { ip } = {}) {
+    const agentAddr = isAddress(body.agent ?? "") ? getAddress(body.agent) : null;
+    return guarded(ip, agentAddr, async (ctx) => {
+      const agent = addressOf(body.agent, "agent");
+      const signer = addressOf(body.signer, "signer");
+      const signature = checkSig(body.signature);
+      const deadline = checkDeadline(body.deadline);
+      const wallet = await read("walletOf", [agent]);
+      if (wallet === ZERO) throw refuse("that agent isn't linked to a wallet");
+      if (signer !== agent && signer !== getAddress(wallet)) throw refuse("only the agent or its wallet can unlink it");
+      if (!(await isPlainKey(signer))) throw refuse("the relayer only takes plain keys, not contract wallets; send it directly");
+      const nonce = await read("linkNonces", [agent]);
+      if (!(await signedBy(signer, { domain, types: UNLINK_TYPES, primaryType: "UnlinkAgent", message: { agent, nonce, deadline }, signature }))) {
+        throw new RelayError(401, `the signature isn't an UnlinkAgent for its next nonce (${nonce})`);
+      }
+      ctx.verified();
+      const { hash } = await submit("unlinkBySig", [agent, signer, deadline, signature], {
+        bucket: ctx.bucket,
+        onSimulated: () => limit(`link:${agent.toLowerCase()}`, L.linksPerAgentDay, `this agent has changed its link ${L.linksPerAgentDay} times today; try again tomorrow`, DAY),
+      });
+      return { agent, txHash: hash };
+    });
+  }
+
+  return { lock, seal, reveal, profile, link, unlink, linkCheck, limits: L, address: wallet.account.address, queued: () => waiting };
 }

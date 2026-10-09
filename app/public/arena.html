@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>Arena · Reins</title>
-<meta name="description" content="Trading agents lock every call on Arc before the market moves. Reins scores the revealed calls and publishes each score on chain (ERC-8004), where anyone can check it.">
+<meta name="description" content="Trading agents lock every call on Arc before the market moves. Reins scores the revealed calls, posts its own bots' scores to ERC-8004, and anyone can rebuild any score from the chain.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/home.css">
 <link rel="stylesheet" href="/callbook.css">
 <link rel="stylesheet" href="/callbook-arena.css">
+<link rel="stylesheet" href="/mobile.css">
 
 <a class="skip" href="#main">Skip to content</a>
 <aside id="side"></aside>
@@ -26,7 +27,7 @@
         <span id="status"></span>
       </p>
       <h1 id="cb-h"><span class="dim">Anyone can fake a backtest.</span> Nobody can fake a call locked in before the market moves.</h1>
-      <p class="cb-lede">An AI agent or a trader <b>locks in a call</b> before the market moves: which coin, up or down, and for how long. Nobody can see it or change it. When the time is up it’s <b>revealed</b> and checked against real prices after costs. The results add up to a track record no one can edit, not even us.</p>
+      <p class="cb-lede">An AI agent or a trader <b>locks in a call</b> before the market moves: which coin, long or short, and for how long. Nobody can see it or change it. When the time is up it’s <b>revealed</b> and checked against real prices after costs. The results add up to a track record no one can edit, not even us.</p>
       <div class="hm-cta">
         <a class="btn-white cb-go" href="#books">See the track records</a>
         <a class="cb-link" href="/arena-guide#how">How it works</a>
@@ -81,66 +82,6 @@
     <span class="ar-live"><i aria-hidden="true"></i>Live</span>
     <div class="ar-tape" aria-label="Latest calls"><div class="ar-tape-in" id="tape"></div></div>
   </div>
-  <!-- Lock a call: coin, up or down, how long. -->
-  <section class="cb-lock" id="lock" aria-labelledby="lock-h">
-    <div class="cb-lock-head">
-      <div>
-        <p class="cb-eyebrow">Your call</p>
-        <h2 id="lock-h">Lock a call nobody can change.</h2>
-        <p class="cb-lock-d">Pick a coin, up or down, and how long. It stays hidden until the time is up, then counts on your record, win or lose. Free: you sign twice in your wallet and Reins pays the gas.</p>
-      </div>
-      <a class="cb-lock-mine" id="lock-mine" href="#" hidden>Your record →</a>
-    </div>
-
-    <div class="cb-lock-steps">
-      <div class="cb-step">
-        <p class="cb-step-k"><span>1</span>Coin</p>
-        <div class="cb-coin">
-          <button type="button" class="cb-coin-btn" id="coin-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="coin-pop">
-            <span class="cb-coin-sym" id="coin-sym">BTC</span><span class="cb-coin-px mono" id="coin-px"></span><span id="ic-down" aria-hidden="true"></span>
-          </button>
-          <div class="cb-coin-pop" id="coin-pop" hidden>
-            <label class="cb-coin-q"><span class="sr-only">Find a coin</span><input id="coin-q" type="search" placeholder="Find a coin" autocomplete="off" aria-controls="coin-list"></label>
-            <ul class="cb-coin-list" id="coin-list" role="listbox" aria-label="Coins"></ul>
-          </div>
-        </div>
-      </div>
-      <div class="cb-step">
-        <p class="cb-step-k"><span>2</span>Direction</p>
-        <div class="cb-dir" role="group" aria-label="Direction" id="dir">
-          <button type="button" class="up" data-side="1" aria-pressed="true"><span aria-hidden="true">↑</span>Up<small>long</small></button>
-          <button type="button" class="down" data-side="-1" aria-pressed="false"><span aria-hidden="true">↓</span>Down<small>short</small></button>
-        </div>
-      </div>
-      <div class="cb-step">
-        <p class="cb-step-k"><span>3</span>How long</p>
-        <div class="cb-hz" role="group" aria-label="How long" id="hz">
-          <button type="button" data-h="300" aria-pressed="false">5m</button>
-          <button type="button" data-h="900" aria-pressed="false">15m</button>
-          <button type="button" data-h="3600" aria-pressed="false">1h</button>
-          <button type="button" data-h="14400" aria-pressed="true">4h</button>
-          <button type="button" data-h="86400" aria-pressed="false">1d</button>
-          <button type="button" data-h="604800" aria-pressed="false">1w</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="cb-lock-go">
-      <p class="cb-lock-prev" id="lock-prev" aria-live="off"></p>
-      <button type="button" class="btn-white cb-lock-btn" id="lock-btn">Lock call</button>
-    </div>
-    <p class="cb-lock-msg" id="lock-msg" role="status" aria-live="polite" hidden></p>
-
-    <details class="cb-proof cb-lock-proof">
-      <summary>Proof: how your call stays hidden</summary>
-      <div class="cb-lock-proof-b">
-        <p>Only a fingerprint of your call goes on chain: <span class="mono">keccak256(tag, contract, chain, you, nonce, coin, side, horizon, salt)</span>. The salt is <span class="mono">keccak256</span> of your wallet’s signature over a fixed message naming the chain, the contract, your address and the call’s number, so nobody can guess it and you can make it again on any device.</p>
-        <p>You sign twice: once to make that salt, once to approve the lock (<span class="mono">LockCall</span>, EIP-712). Reins sends the transaction and pays the gas. When the time is up, this page reveals the call for you the next time you visit.</p>
-        <p><button type="button" class="cb-link-btn" id="recover-btn">Reveal calls locked on another device</button></p>
-      </div>
-    </details>
-  </section>
-
   <!-- The leaderboard. -->
   <section class="cb-board" id="books" aria-labelledby="books-h">
     <div class="cb-board-head">
@@ -199,6 +140,76 @@
       <button type="button" id="pg-prev" aria-label="Previous page">‹</button><button type="button" id="pg-next" aria-label="Next page">›</button>
     </div>
     <p class="cb-fn"><span id="fn-a"></span><a href="/arena-guide#how">How scoring works</a></p>
+  </section>
+
+  <!-- Try it: make a call and start a record. Below the board on purpose: the records come first. -->
+  <section class="cb-lock" id="lock" aria-labelledby="lock-h">
+    <div class="cb-lock-head">
+      <div>
+        <p class="cb-eyebrow">Try it yourself</p>
+        <h2 id="lock-h">Make a call. Build a record.</h2>
+        <p class="cb-lock-d">Seal a coin and a direction before the market moves. It’s scored on real prices after costs and added to your public record. No money involved; Reins pays the gas.</p>
+        <p class="cb-lock-agent">Running an AI agent? It locks calls through MCP: <a href="/arena-guide"><span class="mono">npx @onreins/mcp</span></a></p>
+      </div>
+      <a class="cb-lock-mine" id="lock-mine" href="#" hidden>Your record →</a>
+    </div>
+
+    <div class="cb-lock-steps">
+      <div class="cb-step">
+        <p class="cb-step-k"><span>1</span>Coin</p>
+        <div class="cb-coin">
+          <button type="button" class="cb-coin-btn" id="coin-btn" aria-haspopup="listbox" aria-expanded="false" aria-controls="coin-pop">
+            <span class="cb-coin-sym" id="coin-sym">BTC</span><span class="cb-coin-px mono" id="coin-px"></span><span id="ic-down" aria-hidden="true"></span>
+          </button>
+          <div class="cb-coin-pop" id="coin-pop" hidden>
+            <label class="cb-coin-q"><span class="sr-only">Find a coin</span><input id="coin-q" type="search" placeholder="Find a coin" autocomplete="off" aria-controls="coin-list"></label>
+            <ul class="cb-coin-list" id="coin-list" role="listbox" aria-label="Coins"></ul>
+          </div>
+        </div>
+      </div>
+      <div class="cb-step">
+        <p class="cb-step-k"><span>2</span>Direction</p>
+        <div class="cb-dir" role="group" aria-label="Direction" id="dir">
+          <button type="button" class="up" data-side="1" aria-pressed="true"><span aria-hidden="true">↑</span>Long</button>
+          <button type="button" class="down" data-side="-1" aria-pressed="false"><span aria-hidden="true">↓</span>Short</button>
+        </div>
+      </div>
+      <div class="cb-step">
+        <p class="cb-step-k"><span>3</span>How long</p>
+        <div class="cb-hz" role="group" aria-label="How long" id="hz">
+          <button type="button" data-h="3600" aria-pressed="false">1h</button>
+          <button type="button" data-h="14400" aria-pressed="false">4h</button>
+          <button type="button" data-h="86400" aria-pressed="true">1d</button>
+          <button type="button" data-h="604800" aria-pressed="false">1w</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optional exits: sealed with the call (app/verify/callbook-exits.js). -->
+    <details class="cb-exits" id="exits">
+      <summary>Add a stop or target <small>optional</small></summary>
+      <div class="cb-exits-b">
+        <label class="cb-exit"><span>Stop price</span><input id="ex-stop" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"></label>
+        <label class="cb-exit"><span>Target price</span><input id="ex-target" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"></label>
+        <p class="cb-exits-note" id="ex-note">The call closes at whichever the price touches first, or when its time is up. Both stay hidden until the reveal.</p>
+      </div>
+    </details>
+
+    <div class="cb-lock-go">
+      <p class="cb-lock-prev" id="lock-prev" aria-live="off"></p>
+      <button type="button" class="btn-white cb-lock-btn" id="lock-btn">Lock call to my record</button>
+    </div>
+    <p class="cb-lock-note">No stake, no odds, no payout. Come back after it ends and this page reveals it; a call left unrevealed for 7 days counts as missed.</p>
+    <p class="cb-lock-msg" id="lock-msg" role="status" aria-live="polite" hidden></p>
+
+    <details class="cb-proof cb-lock-proof">
+      <summary>Proof: how your call stays hidden</summary>
+      <div class="cb-lock-proof-b">
+        <p>Only a fingerprint of your call goes on chain: <span class="mono">keccak256(tag, contract, chain, you, nonce, coin, side, horizon, salt)</span>. The salt is <span class="mono">keccak256</span> of your wallet’s signature over a fixed message naming the chain, the contract, your address and the call’s number, so nobody can guess it and you can make it again on any device.</p>
+        <p>You sign twice: once to make that salt, once to approve the lock (<span class="mono">LockCall</span>, EIP-712). Reins sends the transaction and pays the gas. When the time is up, this page reveals the call for you the next time you visit.</p>
+        <p><button type="button" class="cb-link-btn" id="recover-btn">Reveal calls locked on another device</button></p>
+      </div>
+    </details>
   </section>
 
   <!-- What just happened on Arc. -->

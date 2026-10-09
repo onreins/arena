@@ -93,10 +93,30 @@ window.ReinsUI = (function () {
     miss: '<circle cx="12" cy="12" r="8.5" stroke-dasharray="2.6 2.4"/><path d="M9 12h6"/>',
     terminal: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="m7.5 9.5 3 2.5-3 2.5M12.5 15h4"/>',
   };
-  var ALIAS = { external: "ext", chev: "right", sort: "updown", trend: "strategies", gauge: "shield", coins: "wallet" };
+  PATHS.menu = '<path d="M4.5 7.5h15M4.5 12h15M4.5 16.5h15"/>';
+  PATHS.drop = '<path d="M12 3.5s5.5 6.1 5.5 10.2a5.5 5.5 0 0 1-11 0C6.5 9.6 12 3.5 12 3.5Z"/>';
+  PATHS.code ='<path d="M8.5 7.5 4 12l4.5 4.5M15.5 7.5 20 12l-4.5 4.5M13.5 5.5l-3 13"/>';
+  PATHS.copy ='<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>';
+  var ALIAS = { external: "ext", chev: "right", sort: "updown", trend: "strategies", gauge: "shield", coins: "wallet", x: "close", user: "agent", logout: "exit" };
   function icon(name, size) {
     return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"' + (size ? ' style="width:' + size + "px;height:" + size + 'px"' : "") + ">" +
       (PATHS[ALIAS[name] || name] || "") + "</svg>";
+  }
+
+  // A person's avatar, drawn from their address: a mirrored 5×5 grid in one hue.
+  // Nothing is fetched, so it can't track anyone or be swapped for something else.
+  function identicon(addr, size) {
+    var a = String(addr || "").toLowerCase().replace(/^0x/, ""), px = size || 40;
+    if (!/^[0-9a-f]{40}$/.test(a)) return "";
+    var hue = parseInt(a.slice(0, 4), 16) % 360, cells = "";
+    for (var i = 0; i < 15; i++) {
+      if (parseInt(a.charAt(4 + i), 16) % 2) continue;
+      var row = Math.floor(i / 3), col = i % 3;
+      cells += '<rect x="' + (col + 1) + '" y="' + (row + 1) + '" width="1" height="1"/>';
+      if (col < 2) cells += '<rect x="' + (5 - col) + '" y="' + (row + 1) + '" width="1" height="1"/>';
+    }
+    return '<svg class="cb-avatar" viewBox="0 0 7 7" width="' + px + '" height="' + px + '" aria-hidden="true">' +
+      '<rect width="7" height="7" rx="1.6" fill="hsl(' + hue + ' 45% 14%)"/><g fill="hsl(' + hue + ' 80% 66%)" shape-rendering="crispEdges">' + cells + "</g></svg>";
   }
 
   // ---------------------------------------------------------------- avatars
@@ -164,12 +184,16 @@ window.ReinsUI = (function () {
         '<button class="x" id="promo-x" type="button" aria-label="Hide">' + icon("minus") + "</button><b>Tokenized stocks</b><span>Coming to Arc</span></div>");
     $("top").className = "top";
     $("top").innerHTML =
-      '<a class="top-brand" href="/" aria-label="Reins home">' + MARK + "</a>" +
+      '<a class="top-brand" href="/" aria-label="Reins home">' + MARK + '<span class="tb-name">Reins</span><span class="tag">BETA</span></a>' +
       '<label class="search">' + icon("search") + '<span class="sr-only">Search agents and strategies</span>' +
       '<input id="gsearch" type="search" placeholder="Search agents and strategies" autocomplete="off"><kbd>/</kbd></label>' +
       '<div class="top-r"><span class="net" id="net"><i></i><span id="net-text">Arc</span></span>' +
-      '<button class="btn-white" id="wallet" type="button">Connect Wallet</button></div>';
-    tabbar(page);
+      '<button class="btn-white" id="wallet" type="button" aria-haspopup="true">Sign in</button>' +
+      // On a phone: round buttons for search and the menu, as on Aave Pro (mobile.css shows them).
+      '<button class="top-ic" id="m-search" type="button" aria-label="Search">' + icon("search") + "</button>" +
+      '<button class="top-ic" id="m-menu" type="button" aria-label="Menu" aria-expanded="false" aria-controls="mnav">' + icon("menu") + "</button></div>" +
+      '<button class="top-ic" id="m-search-x" type="button" aria-label="Close search">' + icon("close") + "</button>";
+    phoneMenu(page);
     if ($("promo-x")) $("promo-x").addEventListener("click", function () {
       $("promo").remove();
       try { localStorage.setItem("reins-promo", "hidden"); } catch (e) { /* storage off */ }
@@ -183,32 +207,168 @@ window.ReinsUI = (function () {
       var t = document.activeElement && document.activeElement.tagName;
       if (e.key === "/" && t !== "INPUT" && t !== "TEXTAREA" && t !== "SELECT") { e.preventDefault(); $("gsearch").focus(); }
     });
+    // Signed in, the button is your avatar and opens your menu; signed out, it opens the sign-in panel.
+    drawAccount(savedSession());
     $("wallet").addEventListener("click", function () {
-      connect().catch(function (err) { $("wallet").textContent = "No wallet"; $("wallet").title = W.explain(err); });
+      withAuth().then(function (A) {
+        if (A.session()) A.menu($("wallet"));
+        else A.open().catch(function () { /* closed */ });
+      }).catch(function (err) { $("wallet").title = W.explain(err); });
     });
+    withAuth().then(function (A) {
+      A.onChange(function (s) {
+        drawAccount(s);
+        if (s) listeners.forEach(function (fn) { fn(s.address); });
+      });
+      return A.restore();
+    }).then(function (s) { if (s) listeners.forEach(function (fn) { fn(s.address); }); }).catch(function () { /* sign-in unavailable */ });
     W.config().then(function (c) {
       $("nav-explorer").href = c.explorer;
       setNet(true, "Arc " + c.network);
     }).catch(function () { setNet(false, "Offline"); });
   }
-  function tabbar(page) {
-    var bar = document.createElement("nav");
-    bar.className = "tabbar";
-    bar.setAttribute("aria-label", "Main");
-    bar.innerHTML = TABS.map(function (t) {
-      return '<a href="' + t[2] + '"' + (t[0] === page ? ' aria-current="page"' : "") + ">" + icon(t[0]) + "<span>" + t[1] + "</span></a>";
-    }).join("");
-    document.body.appendChild(bar);
+  // The phone menu: every page, grouped, full screen under the top bar (Aave Pro's pattern).
+  // A page with its own top bar (charts) passes where its menu button goes.
+  function phoneMenu(page, host) {
+    if (host) host.insertAdjacentHTML("beforeend", '<button type="button" class="top-ic" id="m-menu" aria-label="Menu" aria-expanded="false" aria-controls="mnav">' + icon("menu") + "</button>");
+    var menu = document.createElement("nav");
+    menu.className = "mnav";
+    menu.id = "mnav";
+    menu.setAttribute("aria-label", "Menu");
+    menu.hidden = true;
+    // A sub-page (the guide, your profile) is marked current over its section.
+    var path = location.pathname.toLowerCase(), onSub = false;
+    var current = function (it) { return it[3] === "sub" ? path === it[2].toLowerCase() : !onSub && it[0] === page; };
+    // The main pages as tiles, each with its own colour and a few words on what's there.
+    var TILE = {
+      explore: ["blue", "Live on Arc"], strategies: ["violet", "Backtested ideas"], callbook: ["green", "Track records"],
+      chat: ["amber", "Describe a strategy"], charts: ["orange", "Live markets"], create: ["pink", "Fund it, set limits"],
+    };
+    var tile = function (it) {
+      var t = TILE[it[0]] || ["blue", ""];
+      return '<a class="tile t-' + t[0] + '" href="' + it[2] + '"' + (current(it) ? ' aria-current="page"' : "") + ">" +
+        '<span class="t-ic">' + icon(it[0]) + "</span><b>" + it[1] + "</b><small>" + t[1] + "</small></a>";
+    };
+    // Rows: [icon, label, href, "sub", external?, caption?]
+    var row = function (it) {
+      return '<a class="row" href="' + it[2] + '"' + (current(it) ? ' aria-current="page"' : "") + (it[4] ? ' target="_blank" rel="noopener"' : "") + ">" +
+        '<span class="r-ic">' + icon(it[0]) + '</span><span class="r-txt"><b>' + it[1] + "</b>" + (it[5] ? "<small>" + it[5] + "</small>" : "") + "</span>" +
+        icon(it[4] ? "ext" : "right").replace('class="ic"', 'class="ic r-go"') + "</a>";
+    };
+    var group = function (title, rows) {
+      return rows.length ? '<div class="grp">' + title + '</div><div class="card">' + rows.map(row).join("") + "</div>" : "";
+    };
+    // Who's here: your profile when signed in, the way in when not.
+    var account = function (s) {
+      if (!s) {
+        return '<div class="acct out"><div class="a-txt"><b>Sign in to Reins</b><small>A browser wallet or Google. Then see your record and link your agent.</small></div>' +
+          '<button type="button" class="btn-white" data-act="signin">Sign in</button></div>';
+      }
+      var href = "/arena/p/" + s.address.toLowerCase();
+      return '<a class="acct" href="' + href + '"' + (path === href ? ' aria-current="page"' : "") + ">" + identicon(s.address, 40) +
+        '<span class="a-txt"><b>Your account</b><small><span class="mono">' + esc(short(s.address)) + "</span>" + (s.label ? " · " + esc(s.label) : "") + "</small></span>" +
+        '<span class="a-go">Profile' + icon("right") + "</span></a>";
+    };
+    var draw = function () {
+      var s = savedSession();
+      var arena = [["info", "How Arena works", "/arena-guide", "sub", false, "Lock a call, get a record"]];
+      onSub = arena.some(function (it) { return path === it[2].toLowerCase(); }) || (!!s && path === "/arena/p/" + s.address.toLowerCase());
+      var arc = [];
+      if ($("nav-explorer")) arc.push(["window", "Block explorer", $("nav-explorer").href, "sub", true]);
+      var testnet = /testnet/i.test(($("net-text") || {}).textContent || "");
+      if (testnet) arc.push(["drop", "Testnet USDC faucet", "https://faucet.circle.com", "sub", true]);
+      menu.innerHTML =
+        account(s) +
+        '<div class="tiles">' + NAV[0][1].map(tile).join("") + "</div>" +
+        group("Arena", arena) +
+        group("Build", [
+          ["terminal", "Arena for your agent", "https://www.npmjs.com/package/@onreins/mcp", "sub", true, "MCP for Claude, Cursor and others"],
+          ["code", "Source code", "https://github.com/onreins/arena", "sub", true, "Open source on GitHub"],
+        ]) +
+        group("Arc", arc) +
+        '<div class="m-foot"><span class="net' + ($("net") && $("net").classList.contains("off") ? " off" : "") + '"><i></i>' +
+        esc(($("net-text") || {}).textContent || "Arc") + "</span><span>Reins · beta</span></div>";
+      // Each block rises in, one after another.
+      Array.prototype.forEach.call(menu.children, function (el, i) { el.style.setProperty("--i", i); });
+    };
+    document.body.appendChild(menu);
+    var btn = $("m-menu");
+    var set = function (open) {
+      if (open) draw();
+      menu.hidden = !open;
+      btn.setAttribute("aria-expanded", String(open));
+      btn.innerHTML = icon(open ? "close" : "menu");
+      document.body.classList.toggle("mnav-on", open);
+    };
+    btn.addEventListener("click", function () { set(menu.hidden); });
+    menu.addEventListener("click", function (e) {
+      if (e.target.closest("a")) set(false);
+      if (e.target.closest('[data-act="signin"]')) {
+        set(false);
+        withAuth().then(function (A) { return A.open(); }).catch(function () { /* closed */ });
+      }
+    });
+    // Signing in or out while the menu is open redraws its account card.
+    window.addEventListener("reins:session", function () { if (!menu.hidden) draw(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) { set(false); btn.focus(); } });
+    window.addEventListener("resize", function () { if (window.innerWidth > 900 && !menu.hidden) set(false); });
+    // Search: the round button opens the field across the whole top bar.
+    var top = $("top");
+    if (!top || !$("m-search")) return;
+    var search = function (on) {
+      top.classList.toggle("searching", on);
+      if (on) { set(false); $("gsearch").focus(); }
+    };
+    $("m-search").addEventListener("click", function () { search(true); });
+    $("m-search-x").addEventListener("click", function () { search(false); });
+    $("gsearch").addEventListener("keydown", function (e) { if (e.key === "Escape") search(false); });
   }
   function setNet(ok, text) {
     $("net").classList.toggle("off", !ok);
     if (text) $("net-text").textContent = text;
   }
+  // The sign-in module (auth.js) and its styles load once, on every page.
+  var authLoad = null;
+  function withAuth() {
+    if (window.ReinsAuth) return Promise.resolve(window.ReinsAuth);
+    authLoad = authLoad || new Promise(function (resolve, reject) {
+      var css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "/auth.css";
+      document.head.appendChild(css);
+      var s = document.createElement("script");
+      s.src = "/auth.js";
+      s.onload = function () { resolve(window.ReinsAuth); };
+      s.onerror = function () { authLoad = null; reject(new Error("Sign-in couldn't load. Reload the page.")); };
+      document.head.appendChild(s);
+    });
+    return authLoad;
+  }
+  function savedSession() {
+    try {
+      var s = JSON.parse(localStorage.getItem("reins.session.v1") || "null");
+      return s && /^0x[0-9a-fA-F]{40}$/.test(s.address || "") ? s : null;
+    } catch (e) { return null; }
+  }
+  function drawAccount(s) {
+    var b = $("wallet");
+    if (!b) return;
+    b.classList.toggle("signed", !!s);
+    b.innerHTML = s ? identicon(s.address, 24) + '<span class="who">' + esc(short(s.address)) + "</span>" + icon("down") : "Sign in";
+    b.setAttribute("aria-label", s ? "Your account, " + short(s.address) : "Sign in");
+    // Pages that show something only to you (your own profile) redraw on this.
+    try { window.dispatchEvent(new CustomEvent("reins:session", { detail: s || null })); } catch (e) { /* old browser */ }
+  }
+  /** Signed in, the address; otherwise the sign-in panel first. Pages await this before acting. */
   async function connect() {
-    var acct = await W.connect();
-    $("wallet").textContent = short(acct);
-    listeners.forEach(function (fn) { fn(acct); });
-    return acct;
+    if (W.account) return W.account;
+    var A = await withAuth();
+    var s = A.session();
+    if (s) {
+      await A.restore();
+      if (W.account) return W.account;
+    }
+    return A.open();
   }
   var onAccount = function (fn) { listeners.push(fn); };
 
@@ -503,8 +663,8 @@ window.ReinsUI = (function () {
 
   return {
     FLAT: FLAT, esc: esc, short: short, money: money, compact: compact, bigMoneyHtml: bigMoneyHtml, dirOf: dirOf,
-    pct: pct, pctHtml: pctHtml, stateOf: stateOf, riskOf: riskOf, icon: icon, avatar: avatar, coins: coins, coinCount: coinCount, ring: ring, RANGES: RANGES,
-    topbar: topbar, tabbar: tabbar, TABS: TABS, MARK: MARK, setNet: setNet, connect: connect, onAccount: onAccount,
+    pct: pct, pctHtml: pctHtml, stateOf: stateOf, riskOf: riskOf, icon: icon, identicon: identicon, avatar: avatar, coins: coins, coinCount: coinCount, ring: ring, RANGES: RANGES,
+    topbar: topbar, phoneMenu: phoneMenu, TABS: TABS, MARK: MARK, setNet: setNet, connect: connect, onAccount: onAccount,
     change: change, periodReturns: periodReturns, combine: combine, areaSvg: areaSvg, Chart: Chart, getJson: getJson,
     curvePoints: curvePoints, pseudoAddress: pseudoAddress, strategyRisk: strategyRisk, spark: spark, indexOf: indexOf, windowed: windowed,
   };

@@ -44,7 +44,7 @@ import { createPriceSource } from "../app/verify/callbook-prices.js";
 import { CallbookError, fail, explain } from "./errors.js";
 import { createMarkets, MIN_VOLUME_USD } from "./markets.js";
 import { Journal, defaultJournalPath } from "./journal.js";
-import { relay, LOCK_TYPES, SEAL_TYPES, PROFILE_TYPES, domainOf } from "./relay.js";
+import { relay, LOCK_TYPES, SEAL_TYPES, PROFILE_TYPES, LINK_TYPES, UNLINK_TYPES, domainOf } from "./relay.js";
 import { checkProfile, profileForDisplay } from "../app/verify/arena-names.js";
 import { profileKey } from "../app/verify/callbook-chain.js";
 import { profileFor } from "../app/verify/callbook-agents.js";
@@ -53,6 +53,7 @@ import {
   recoverSealedCall, recoverLockedCall, recoverSymbolCall, SIDES,
 } from "./proof.js";
 import { strategyTiming, callHorizon, parseDuration, formatDuration, countdown, utc, MAX_HORIZON, MIN_CALL_HORIZON } from "./durations.js";
+import { withExits, exitsProblem, sealedPrice } from "../app/verify/callbook-exits.js";
 import { bookLine, strategyStatus, callsStatus, sealableRound, SIDE_WORD } from "./view.js";
 
 const CALLBOOK = artifact("Callbook");
@@ -60,6 +61,8 @@ const ABI = CALLBOOK.abi;
 /** Treat a key as having gas when it can pay for this much at the current price. */
 const GAS_HEADROOM = 600_000n;
 const LOCK_SIG_TTL = 600;
+// A link request stays usable for a week (less a minute, so the relayer's 7-day cap still takes it).
+const LINK_TTL = 7 * 86_400 - 60;
 /** One queue of locks per key in this process (see the top of the file). */
 const LOCK_QUEUES = new Map();
 const SALT_SECRET = /^(0x)?[0-9a-fA-F]{64}$/;
@@ -437,19 +440,24 @@ export class CallbookClient {
   /**
    * Lock an open call: coin, long or short, and a horizon. Without `book`, it
    * goes in your any-coin book (opened by the first lock, gasless if a relay is set).
+   * `stop` and `target` (prices, optional) close it early at the first one
+   * touched; the horizon is then its longest hold, 7 days at most. They're
+   * sealed with the call (callbook-exits.js) and kept in the journal, which is
+   * the only way to reveal it from another machine.
    */
-  async lock({ coin, side, horizon = "4h", book: bookId } = {}) {
+  async lock({ coin, side, horizon = "4h", book: bookId, stop = null, target = null } = {}) {
     const s = sideOf(side, { allowFlat: false });
+    const exits = this.wrap(() => ({ stop: stop == null || stop === "" ? null : sealedPrice(stop), target: target == null || target === "" ? null : sealedPrice(target) }));
     // Serialised here; another process locking with the same key can still win the id,
     // and then the contract refuses ours with StaleId, so try once more with fresh ids.
     const attempt = () => this.exclusive(async () => {
       if (bookId != null) {
         const book = await this.myBook(bookId);
         if (book.kind === "scheduled") fail(`Book ${book.id} is a strategy book: seal its rounds instead of locking calls.`, "NotFree");
-        if (!book.anyCoin) return this.lockInList(book, coin, s, horizon);
+        if (!book.anyCoin) return this.lockInList(book, coin, s, horizon, exits);
         if (book.owner !== this.me) fail(`Book ${book.id} is another account's open-call book.`, "NotCaller");
       }
-      return this.lockAnyCoin(coin, s, horizon);
+      return this.lockAnyCoin(coin, s, horizon, exits);
     });
     try {
       return await attempt();
@@ -459,30 +467,48 @@ export class CallbookClient {
     }
   }
 
-  async lockInList(book, coin, s, horizon) {
+  /**
+   * A call's stop and target against each other, its horizon (7 days at most)
+   * and the coin's mark price now. Without a price (Hyperliquid unreachable),
+   * only the first two; a level already crossed at entry closes the call there.
+   */
+  async checkExits(coin, side, horizon, exits) {
+    if (exits.stop == null && exits.target == null) return null;
+    let price = null;
+    try {
+      price = (await this.marketsSource.perps()).find((p) => same(p.coin, coin))?.price ?? null;
+    } catch { /* checked without it */ }
+    const problem = exitsProblem({ side, ...exits, price, horizon, coin });
+    if (problem) fail(problem, "BadExits");
+    return exits;
+  }
+
+  async lockInList(book, coin, s, horizon, exits = {}) {
     if (!this.role(book)) this.notMine(book, "lock calls");
     if (book.closedAt != null) fail(`Book ${book.id} is closed and takes no new calls.`, "BookClosed");
     const coinIndex = book.coins.findIndex((c) => same(c, coin));
     if (coinIndex < 0) fail(`${coin} isn't in book ${book.id}; it calls ${book.coins.join(", ")}. Leave the book out to call any coin.`, "BadCoin");
     const h = this.wrap(() => callHorizon(horizon, { min: book.minHorizon, max: book.maxHorizon }));
+    await this.checkExits(book.coins[coinIndex], s, h, exits);
     if (await this.gasless()) {
       fail(`Book ${book.id} has a coin list, so its calls can't be relayed; only your open-call book takes gasless calls. Fund ${this.address} or leave the book out.`, "NoGas");
     }
     const { callbook, chainId } = this.ctx();
     const callId = Number(await this.view("lockCount", [BigInt(book.id)]));
-    const salt = lockSalt(this.secret, { chainId, callbook, bookId: book.id, callId });
+    const salt = withExits(lockSalt(this.secret, { chainId, callbook, bookId: book.id, callId }), exits);
     const hash = lockedHash({ callbook, chainId, bookId: book.id, callId, coinIndex, side: s, horizon: h, salt });
     const receipt = await this.send("lock", [BigInt(book.id), hash, h, BigInt(callId)], { bookId: book.id });
     const ev = this.events(receipt, "Locked")[0].args;
-    return this.locked({ book: book.id, ev, coin: book.coins[coinIndex], coinIndex, side: s, horizon: h, receipt, gasless: false });
+    return this.locked({ book: book.id, ev, coin: book.coins[coinIndex], coinIndex, side: s, horizon: h, receipt, gasless: false, exits });
   }
 
-  async lockAnyCoin(symbol, s, horizon) {
+  async lockAnyCoin(symbol, s, horizon, exits = {}) {
     const coin = await this.resolveCoin(symbol);
     const h = this.wrap(() => callHorizon(horizon));
+    await this.checkExits(coin, s, h, exits);
     const { callbook, chainId } = this.ctx();
     const [nonce, defaultBook, now] = await Promise.all([this.view("nonces", [this.address]), this.view("defaultBookOf", [this.address]), this.now()]);
-    const salt = symbolSalt(this.secret, { chainId, callbook, account: this.address, nonce });
+    const salt = withExits(symbolSalt(this.secret, { chainId, callbook, account: this.address, nonce }), exits);
     const hash = symbolHash({ callbook, chainId, account: this.address, nonce, coin, side: s, horizon: h, salt });
     const deadline = BigInt(now + LOCK_SIG_TTL);
     const signLock = () => this.sign(LOCK_TYPES, "LockCall", { account: this.address, callHash: hash, horizon: h, nonce, deadline });
@@ -503,19 +529,23 @@ export class CallbookClient {
     const ev = this.events(receipt, "Locked").map((l) => l.args).find((a) => same(a.callHash, hash));
     if (!ev) fail(`The transaction ${receipt.transactionHash} doesn't lock this call, so it wasn't recorded. Check ARENA_RELAY_URL.`, "BadRelay");
     const opened = this.events(receipt, "OpenedFree").length > 0;
-    return this.locked({ book: Number(ev.bookId), ev, coin, side: s, horizon: h, receipt, gasless, nonce: Number(nonce), opened });
+    return this.locked({ book: Number(ev.bookId), ev, coin, side: s, horizon: h, receipt, gasless, nonce: Number(nonce), opened, exits });
   }
 
-  locked({ book, ev, coin, coinIndex, side, horizon, receipt, gasless, nonce, opened = false }) {
+  locked({ book, ev, coin, coinIndex, side, horizon, receipt, gasless, nonce, opened = false, exits = {} }) {
     const { callbook, chainId } = this.ctx();
     const callId = Number(ev.callId), entryAt = Number(ev.entryAt);
-    this.journal.put({ chainId, callbook, bookId: book, callId, coin, coinIndex, side, horizon, nonce, entryAt, tx: receipt.transactionHash });
+    const has = exits.stop != null || exits.target != null;
+    this.journal.put({ chainId, callbook, bookId: book, callId, coin, coinIndex, side, horizon, nonce, entryAt, tx: receipt.transactionHash, ...(has ? { exits } : {}) });
     const revealAt = entryAt + horizon;
+    const levels = [exits.stop != null ? `stop ${exits.stop}` : null, exits.target != null ? `target ${exits.target}` : null].filter(Boolean).join(", ");
     return {
       bookId: book, callId, coin, side: SIDE_WORD[side], horizon: formatDuration(horizon), entryAt, revealAt, openedBook: opened, gasless,
+      ...(has ? { stop: exits.stop, target: exits.target } : {}),
       tx: receipt.transactionHash,
-      summary: `Locked ${SIDE_WORD[side]} ${coin} for ${formatDuration(horizon)} (book ${book}, call ${callId}${opened ? ", your new open-call book" : ""}). ` +
-        `Entry ${utc(entryAt)}; reveal from ${utc(revealAt)}.`,
+      summary: `Locked ${SIDE_WORD[side]} ${coin} ${has ? `with ${levels}, held at most ${formatDuration(horizon)}` : `for ${formatDuration(horizon)}`} ` +
+        `(book ${book}, call ${callId}${opened ? ", your new open-call book" : ""}). Entry ${utc(entryAt)}; reveal from ${utc(revealAt)}.` +
+        (has ? " The stop and target are kept in this machine's journal: it's needed to reveal this call." : ""),
     };
   }
 
@@ -537,11 +567,13 @@ export class CallbookClient {
     const key = `${book.id}:${l.callId}`;
     const noted = this.journal.get(slot);
     const horizon = await this.lockHorizon(book, l);
+    // A call with a stop or target has them in its salt: only the journal knows them, so it can't be searched for.
+    const sealed = (base) => withExits(base, noted?.exits ?? {});
     if (book.anyCoin) {
       const nonce = noted?.nonce ?? Number((await this.view("lockedOf", [BigInt(book.id), BigInt(l.callId)])).nonce);
       const salt = symbolSalt(this.secret, { chainId, callbook, account: book.owner, nonce });
-      if (noted && symbolHash({ callbook, chainId, account: book.owner, nonce, coin: noted.coin, side: noted.side, horizon, salt }) === l.hash.toLowerCase()) {
-        return { ...noted, horizon, salt };
+      if (noted && symbolHash({ callbook, chainId, account: book.owner, nonce, coin: noted.coin, side: noted.side, horizon, salt: sealed(salt) }) === l.hash.toLowerCase()) {
+        return { ...noted, horizon, salt: sealed(salt) };
       }
       if (this.unrecoverable.has(key)) return null;
       const coins = await this.marketsSource.names();
@@ -549,8 +581,8 @@ export class CallbookClient {
       return this.remember(book, l, key, found && { ...found, nonce, salt });
     }
     const salt = lockSalt(this.secret, { chainId, callbook, bookId: book.id, callId: l.callId });
-    if (noted && lockedHash({ callbook, chainId, bookId: book.id, callId: l.callId, coinIndex: noted.coinIndex, side: noted.side, horizon, salt }) === l.hash.toLowerCase()) {
-      return { ...noted, horizon, salt };
+    if (noted && lockedHash({ callbook, chainId, bookId: book.id, callId: l.callId, coinIndex: noted.coinIndex, side: noted.side, horizon, salt: sealed(salt) }) === l.hash.toLowerCase()) {
+      return { ...noted, horizon, salt: sealed(salt) };
     }
     if (this.unrecoverable.has(key)) return null;
     const found = recoverLockedCall({ hash: l.hash, callbook, chainId, bookId: book.id, callId: l.callId, salt, coinCount: book.coins.length, horizons: [horizon] });
@@ -603,7 +635,7 @@ export class CallbookClient {
         const exit = l.entryAt + horizon;
         const item = { bookId: book.id, callId: l.callId, horizon: formatDuration(horizon), revealAt: exit };
         const plain = await this.lockPlain(book, l);
-        if (!plain) { out.failed.push({ ...item, reason: "Neither the journal nor a search over every coin and side matches this call: it was locked with another salt secret." }); continue; }
+        if (!plain) { out.failed.push({ ...item, reason: "Neither the journal nor a search over every coin and side matches this call: it was locked with another salt secret, or with a stop or target on a machine whose journal this isn't." }); continue; }
         const described = { ...item, coin: plain.coin, side: SIDE_WORD[plain.side] };
         if (now < exit) { out.waiting.push({ ...described, revealIn: countdown(exit - now) }); continue; }
         if (now > exit + GRACE) { out.expired.push({ ...described, note: "the 7-day reveal window closed; it scores as its worst outcome" }); continue; }
@@ -714,6 +746,48 @@ export class CallbookClient {
     };
   }
 
+  /**
+   * Ask to link this agent to a person's wallet, so its records show on their
+   * profile. Signs the agent's half of LinkAgent and returns the page where the
+   * wallet signs the other half (gasless). Valid for 7 days, or until used.
+   */
+  async linkRequest({ wallet } = {}) {
+    if (!isAddress(wallet ?? "")) fail(`"${wallet}" isn't a wallet address (0x and 40 hex digits).`, "BadWallet");
+    const w = getAddress(wallet);
+    if (same(w, this.address)) fail("That's this agent's own address. Give the wallet you use in your browser.", "BadWallet");
+    const [nonce, now, current] = await Promise.all([this.view("linkNonces", [this.address]), this.now(), this.view("walletOf", [this.address])]);
+    const deadline = BigInt(now + LINK_TTL);
+    const agentSig = await this.sign(LINK_TYPES, "LinkAgent", { agent: this.address, wallet: w, nonce, deadline });
+    const base = (this.opts.apiUrl ?? DEFAULT_APP_URL).replace(/\/$/, "");
+    const q = new URLSearchParams({ agent: this.address, wallet: w, deadline: String(deadline), sig: agentSig });
+    const url = `${base}/arena/link?${q}`;
+    const already = !/^0x0{40}$/i.test(current) && same(current, w);
+    return {
+      agent: this.address, wallet: w, deadline: Number(deadline), url, alreadyLinked: already,
+      summary: already
+        ? `This agent is already linked to ${w}. Its records show on ${base}/arena/p/${w.toLowerCase()}.`
+        : `Open this link and sign in with ${w} to confirm: ${url} It's free, and it works once, within 7 days.`,
+    };
+  }
+
+  /** Unlink this agent from its wallet (gasless). Its records go back to its own profile. */
+  async unlinkWallet() {
+    const current = await this.view("walletOf", [this.address]);
+    if (/^0x0{40}$/i.test(current)) fail("This agent isn't linked to a wallet.", "NotLinked");
+    const gasless = await this.gasless();
+    let receipt;
+    if (gasless) {
+      const [nonce, now] = await Promise.all([this.view("linkNonces", [this.address]), this.now()]);
+      const deadline = BigInt(now + LOCK_SIG_TTL);
+      const signature = await this.sign(UNLINK_TYPES, "UnlinkAgent", { agent: this.address, nonce, deadline });
+      receipt = await this.relayed("unlink", { agent: this.address, signer: this.address, deadline, signature }, "unlink").catch((e) => { throw this.explain(e); });
+    } else {
+      receipt = await this.send("unlink", [this.address], {});
+    }
+    if (!this.events(receipt, "AgentUnlinked").some((l) => same(l.args.agent, this.address))) fail(`The transaction ${receipt.transactionHash} didn't unlink this agent.`, "BadRelay");
+    return { agent: this.address, wallet: current, gasless, tx: receipt.transactionHash, summary: `Unlinked from ${current}. This agent's records show on its own profile again: ${this.profileUrl()}` };
+  }
+
   /** What Arena shows for this key: its own profile, and each of its books' names. */
   async profile() {
     const state = await this.read();
@@ -723,10 +797,14 @@ export class CallbookClient {
       const shown = profileFor({ chain: state, book: b });
       return { book: b.id, kind: b.kind === "scheduled" ? "strategy" : "calls", shownAs: shown?.name ?? null, from: shown?.source ?? null };
     });
-    const summary = own
+    const linked = await this.view("walletOf", [this.address]).catch(() => null);
+    const wallet = linked && !/^0x0{40}$/i.test(linked) ? linked : null;
+    const base = (this.opts.apiUrl ?? DEFAULT_APP_URL).replace(/\/$/, "");
+    const summary = (own
       ? `You're "${own.name}" in Arena${own.bio ? ` (${own.bio})` : ""}. Your profile: ${url}`
-      : `You have no Arena name yet, so your records show your address. Set one with arena_profile. Your profile: ${url}`;
-    return { address: this.address, profile: own, books, url, summary };
+      : `You have no Arena name yet, so your records show your address. Set one with arena_profile. Your profile: ${url}`) +
+      (wallet ? ` This agent is linked to wallet ${wallet}, so its records also show on ${base}/arena/p/${wallet.toLowerCase()}.` : "");
+    return { address: this.address, profile: own, books, url, linkedWallet: wallet, summary };
   }
 
   /** Record, score, pending calls with countdowns and the next deadline, for one book or all of this key's. */

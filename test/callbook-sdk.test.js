@@ -16,7 +16,7 @@ import http from "node:http";
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createPublicClient, createWalletClient, http as viemHttp, defineChain, toHex, parseEventLogs } from "viem";
+import { createPublicClient, createWalletClient, http as viemHttp, defineChain, toHex, parseEventLogs, verifyTypedData } from "viem";
 import { mnemonicToAccount, generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -30,6 +30,9 @@ import {
 } from "../callbook/proof.js";
 import { parseDuration, formatDuration, horizonGrid, callHorizon, onHorizonGrid, COMMON_HORIZONS } from "../callbook/durations.js";
 import { deriveSalt } from "../runner/callbook.js";
+import { evaluateAny } from "../app/verify/callbook.js";
+import { deriveLocks } from "../app/verify/callbook-callers.js";
+import { exitsOf } from "../app/verify/callbook-exits.js";
 import { artifact } from "../scripts/artifact.js";
 
 const HOUR = 3600, DAY = 86400;
@@ -536,6 +539,30 @@ describe("on a local node", () => {
     assert.equal((await cb.profile()).profile, null);
   });
 
+  test("linking: the agent signs its half and hands back the page where the wallet confirms", async (t) => {
+    if (!nodeUp) return t.skip(`no Hardhat node at ${RPC}`);
+    const key = generatePrivateKey();
+    const agent = privateKeyToAccount(key).address;
+    const wallet = mnemonicToAccount("test test test test test test test test test test test junk", { addressIndex: 7 }).address;
+    const cb = sdk(key, { apiUrl: "https://app.example" });
+    await assert.rejects(cb.linkRequest({ wallet: "0x123" }), /isn't a wallet address/);
+    await assert.rejects(cb.linkRequest({ wallet: agent }), /own address/);
+    const r = await cb.linkRequest({ wallet });
+    const u = new URL(r.url);
+    assert.equal(u.origin + u.pathname, "https://app.example/arena/link");
+    assert.equal(u.searchParams.get("agent"), agent);
+    assert.equal(u.searchParams.get("wallet"), wallet);
+    assert.match(r.summary, /sign in with 0x.*7 days/);
+    const ok = await verifyTypedData({
+      address: agent, signature: u.searchParams.get("sig"), primaryType: "LinkAgent",
+      domain: { name: "Arena", version: "1", chainId: 31337, verifyingContract: callbook },
+      types: { LinkAgent: [{ name: "agent", type: "address" }, { name: "wallet", type: "address" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] },
+      message: { agent, wallet, nonce: 0n, deadline: BigInt(u.searchParams.get("deadline")) },
+    });
+    assert.equal(ok, true, "the agent's half is a valid LinkAgent signature");
+    await assert.rejects(cb.unlinkWallet(), /isn't linked/);
+  });
+
   test("a book that only names this key as caller isn't acted in unless listed", async (t) => {
     if (!nodeUp) return t.skip(`no Hardhat node at ${RPC}`);
     const key = keyOf(10);
@@ -580,6 +607,76 @@ describe("on a local node", () => {
     assert.ok(done.revealed.some((r) => r.horizon === "1h7m"));
   });
 
+  test("stop and target: sealed in the salt, read from the reveal, and the first touched closes the call", async (t) => {
+    if (!nodeUp) return t.skip(`no Hardhat node at ${RPC}`);
+    // Prices flat at 100 (markets say 100 too), then one 5-minute candle reaching 105.
+    let spikeAt = Infinity;
+    const path5 = {
+      perpNames: async () => NAMES,
+      async load(coins, from, to, interval = "1h") {
+        const step = interval === "5m" ? 300 : HOUR;
+        const candles = {}, funding = {};
+        for (const c of coins) {
+          candles[c] = [];
+          funding[c] = [];
+          for (let t0 = Math.floor(from / step) * step; t0 <= to + step; t0 += step) {
+            const spike = t0 <= spikeAt && spikeAt < t0 + step;
+            candles[c].push({ t: t0, o: 100, h: spike ? 105 : 100.5, l: 99.5, c: 100, v: 1 });
+          }
+        }
+        return { interval, from, to, candles, funding, fundingOk: true };
+      },
+    };
+    const key = keyOf(13);
+    const cb = sdk(key, { priceSource: path5 });
+    await assert.rejects(cb.lock({ coin: "ETH", side: "long", horizon: "1d", stop: 101 }), /ETH is at 100: a long's stop must be below that/);
+    await assert.rejects(cb.lock({ coin: "ETH", side: "long", horizon: "8d", stop: 95 }), /at most 7 days/);
+    await assert.rejects(cb.lock({ coin: "ETH", side: "short", horizon: "1d", stop: 105, target: 110 }), /short's stop must be above its target/);
+
+    const long = await cb.lock({ coin: "ETH", side: "long", horizon: "1d", stop: 95, target: "104.5" });
+    assert.deepEqual([long.stop, long.target], ["95", "104.5"]);
+    assert.match(long.summary, /with stop 95, target 104\.5, held at most 1d/);
+    const short = await cb.lock({ coin: "SOL", side: "short", horizon: "1d", stop: 102, target: 90 });
+    const plain = await cb.lock({ coin: "BTC", side: "long", horizon: "1d" });
+    // Status shows the agent its pending calls' stop and target, from the journal.
+    const pendingNow = (await cb.status({ book: long.bookId })).pending;
+    const seen = pendingNow.find((p) => p.callId === long.callId);
+    assert.deepEqual([seen.stop, seen.target], ["95", "104.5"]);
+    assert.equal(pendingNow.find((p) => p.callId === plain.callId).stop, undefined);
+    spikeAt = Math.max(long.entryAt, short.entryAt) + 2 * HOUR + 60;
+
+    await mineAt(Math.max(long.revealAt, short.revealAt, plain.revealAt) + 1);
+    const done = await cb.revealDue();
+    assert.equal(done.revealed.length, 3, JSON.stringify(done.failed));
+
+    // The indexer found each reveal's salt in its transaction and checked it against the call.
+    const state = await cb.read();
+    const book = state.books.get(long.bookId);
+    assert.deepEqual(exitsOf(book.locks.get(long.callId).reveal.salt), { stop: { value: 95, text: "95" }, target: { value: 104.5, text: "104.5" } });
+    assert.equal(exitsOf(book.locks.get(plain.callId).reveal.salt), null, "an ordinary call's salt has none");
+
+    await mineAt(Math.max(long.revealAt, short.revealAt) + 2 * HOUR);
+    const ev = await evaluateAny({ chain: state, book, source: path5, asOf: await latest() });
+    const byId = new Map(ev.scored.periods.map((c) => [c.callId, c]));
+    const l = byId.get(long.callId), s = byId.get(short.callId), p = byId.get(plain.callId);
+    assert.deepEqual([l.exitReason, l.exit, l.candles], ["target", 104.5, "5m"]);
+    assert.ok(Math.abs(l.move - 0.045) < 1e-9, `long made 4.5% to its target (${l.move})`);
+    assert.ok(l.closedAt > l.entryAt && l.closedAt < l.exitAt, "closed well before its horizon");
+    assert.deepEqual([s.exitReason, s.exit], ["stop", 102], "the spike hit the short's stop");
+    assert.ok(s.ret < -0.02);
+    assert.equal(p.exits, undefined, "no exits: held to its horizon as before");
+    assert.equal(p.exitReason, undefined);
+    // The report carries each exit call's levels and why it closed.
+    const row = ev.report.report.calls.find((c) => c[0] === long.callId);
+    assert.deepEqual(row[7].slice(0, 3), ["95", "104.5", "target"]);
+
+    // A reveal whose salt can't be found scores at its worst.
+    const lost = { ...book, locks: new Map([[long.callId, { ...book.locks.get(long.callId), reveal: { ...book.locks.get(long.callId).reveal, salt: null } }]]) };
+    const [c] = deriveLocks(lost, await latest(), NAMES);
+    assert.equal(c.status, "unscorable");
+    assert.equal(c.saltUnread, true);
+  });
+
   test("unknown books and coins are sentences", async (t) => {
     if (!nodeUp) return t.skip(`no Hardhat node at ${RPC}`);
     const cb = sdk(keyOf(7));
@@ -613,7 +710,7 @@ describe("the MCP server", () => {
   test("lists its tools, a guide and prompts", async () => {
     const { tools } = await mcp.listTools();
     assert.deepEqual(tools.map((x) => x.name).sort(), [
-      "arena_account", "arena_lock", "arena_markets", "arena_my_books", "arena_open", "arena_profile", "arena_reveal_due", "arena_seal", "arena_status", "arena_verify",
+      "arena_account", "arena_link_wallet", "arena_lock", "arena_markets", "arena_my_books", "arena_open", "arena_profile", "arena_reveal_due", "arena_seal", "arena_status", "arena_unlink_wallet", "arena_verify",
     ]);
     assert.ok(tools.every((x) => x.title && x.description.length > 40));
     const { resources } = await mcp.listResources();

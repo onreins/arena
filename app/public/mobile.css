@@ -121,6 +121,13 @@
   .tm-top ~ .mnav:not([hidden]) { top: 52px; }
   .tm-top .top-ic { width: 36px; height: 36px; }
 }
+/* The smallest phones (320px): the bar's mark, sign-in pill and two round buttons fit without overflowing. */
+@media (max-width: 360px) {
+  .top { gap: 6px; }
+  .top-brand { gap: 6px; }
+  .top-r { gap: 6px; }
+  .top .btn-white#wallet { padding: 0 12px; }
+}
 @keyframes mnav-rise { from { opacity: 0; transform: translateY(10px); } }
 @media (prefers-reduced-motion: reduce) { .mnav:not([hidden]) > * { animation: none; } }
 
@@ -232,4 +239,10 @@
   .scard .lbl { position: relative; font: 500 11px var(--sans); letter-spacing: .05em; text-transform: uppercase; }
   .scard .val { position: relative; margin-top: auto; padding-top: 10px; font: 600 26px/1.1 var(--sans); letter-spacing: -.02em; }
   .scard .sub2 { position: relative; margin-top: 4px; font-size: 12px; line-height: 1.4; }
+}
+/* Under 400px three stat boxes don't fit their labels: the score takes the full row,
+   predictions and return after fees share the next. */
+@media (max-width: 400px) {
+  .cb-lb tr.row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cb-lb tr.row td[data-k="score"] { grid-column: 1 / -1; min-height: 0; }
 }

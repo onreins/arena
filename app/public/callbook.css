@@ -407,7 +407,8 @@ main.cb { --ink-4: #8a8888; }
   .cbk-calls .c-lock { grid-column: 1; grid-row: 3; }
   .cbk-calls .c-proof { grid-column: 2; grid-row: 3; text-align: right; }
   .cbk-calls td:empty, .cbk-calls tr.miss .c-lock { display: none; }
-  .cbk-calls tr.pend, .cbk-calls tr.miss, .cbk-calls tr.held { margin: 0 -4px; padding-inline: 8px; border-radius: 8px; }
+  /* Tinted rows keep their inset inside the panel (a negative margin scrolled the table 4px sideways). */
+  .cbk-calls tr.pend, .cbk-calls tr.miss, .cbk-calls tr.held { margin: 0; padding-inline: 8px; border-radius: 8px; }
   .cbk-tape .hm-panel-h h2 { flex-wrap: wrap; row-gap: 4px; }
   .cbk-tape .hm-panel-h h2 small { flex-basis: 100%; }
   .cbk-report .kv > div { flex-direction: column; gap: 6px; }
@@ -620,6 +621,21 @@ main.cb { --ink-4: #8a8888; }
 .cb-fn { margin-top: 18px; color: var(--ink-4); font: 500 10.5px/1.7 var(--sans); letter-spacing: .12em; text-transform: uppercase; }
 .cb-board + .cb-duo { margin-top: 56px; }
 @media (max-width: 1280px) { .cb-lb .opt { display: none; } }
+/* Tablets and narrow desktops (761-1280): the five stats still fit without scrolling the table
+   sideways; headers and the agent's coin line wrap instead. */
+@media (min-width: 761px) and (max-width: 1280px) {
+  .cb-lb th { padding: 0 8px; white-space: normal; line-height: 1.35; }
+  .cb-lb td { padding: 0 8px; }
+  .cb-lb td.c-bot { white-space: normal; }
+  .cb-lb .c-bot small { white-space: normal; max-width: 34ch; }
+}
+/* The same for a record's predictions (761-1100): lock time, result note and proof wrap. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .cbk-calls th, .cbk-calls td { padding-inline: 8px; }
+  .cbk-calls td.c-lock, .cbk-calls td.c-proof, .cbk-calls td.c-note, .cbk-calls td.c-ret { white-space: normal; }
+  .cbk-calls td.c-lock small { max-width: 16ch; }
+  .cbk-calls td.c-proof { min-width: 12ch; }
+}
 
 .cb h1, .cb h2, .cb h3 { text-wrap: balance; }
 .cb p, .cb dd { text-wrap: pretty; }
@@ -747,7 +763,7 @@ p.cb-agents-more { font-size: 13px !important; }
 .cb-agents .cb-term { margin-top: 0; }
 .cb-term-t { color: var(--ink-3); font: 500 12px var(--sans); }
 .cb-term-bar #mcp-copy { margin-left: auto; }
-.cb-term-tabs { display: flex; gap: 2px; min-width: 0; }
+.cb-term-tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .cb-term-tabs button { height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--ink-3); font: 500 12px var(--sans); cursor: pointer; white-space: nowrap; }
 .cb-term-tabs button:hover { color: var(--ink-2); }
 .cb-term-tabs button[aria-selected="true"] { background: var(--chip-2); color: var(--ink); }

@@ -26,7 +26,8 @@
 }
 /* Light in the room: soft glows behind everything. */
 .arena::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 1400px; z-index: -1; pointer-events: none;
+  /* Capped at the page's own height, so a short page (the link page) doesn't scroll into empty glow. */
+  content: ""; position: absolute; inset: 0 0 auto 0; height: min(1400px, 100%); z-index: -1; pointer-events: none;
   background:
     radial-gradient(900px 520px at 78% 0%, rgba(139, 124, 255, .17), transparent 62%),
     radial-gradient(700px 420px at 4% 18%, rgba(46, 230, 166, .07), transparent 64%),
@@ -191,6 +192,8 @@
 
 @media (max-width: 1100px) {
   .arena .ar-hero { padding: 40px 36px 44px; }
+  /* With the sidebar still open (901-1100) the copy column is ~300px: keep the headline to three lines. */
+  .arena .ar-hero h1 { font-size: 40px; }
   .ar-rec { max-width: 520px; }
   .ar-how-grid, .ar-build, .ar-check-b { grid-template-columns: minmax(0, 1fr); gap: 28px; }
   .arena .ar-how .cb-machine { max-width: 560px; }
@@ -408,6 +411,11 @@
   .cbp-who h1 { font-size: 28px; }
   .cbp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cbp-calls .c-rec { display: none; }
+  /* Three columns that wrap inside the panel instead of scrolling it sideways. */
+  .cbp-calls th, .cbp-calls td { padding-inline: 6px; }
+  .cbp-calls td, .cbp-calls .cb-pend { white-space: normal; }
+  .cbp-calls .c-round b { white-space: nowrap; }
+  .cbp-calls .cb-call { flex-wrap: wrap; row-gap: 4px; }
 }
 
 /* ------------------------------------------------------------------ your own profile, and linked agents */
@@ -483,3 +491,14 @@
 .ar-faq-list summary::after { content: "+"; color: #8B7CFF; font-weight: 500; }
 .ar-faq-list details[open] summary::after { content: "–"; }
 .ar-faq-list p { margin: 10px 0 0; color: #a9b0d0; line-height: 1.6; }
+
+/* ------------------------------------------------------------------ panel headers and wide screens */
+/* A panel's title and its note or filters wrap as whole pieces instead of squeezing each other
+   ("On chain, as it happens" beside the feed filters, "Latest predictions" beside its note). */
+.arena .hm-panel-h { flex-wrap: wrap; row-gap: 10px; }
+.arena .hm-panel-h h2 { flex-wrap: wrap; row-gap: 2px; min-width: 0; }
+.arena .hm-panel-h .cb-seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+/* Past ~1760px the content stops growing at 1440px and sits centred, so sections don't spread into empty gaps. */
+@media (min-width: 1765px) {
+  main.arena { padding-inline: calc((100vw - var(--side) - 1440px) / 2); }
+}

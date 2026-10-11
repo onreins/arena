@@ -62,6 +62,9 @@ const OUT = `deployments/callbook-${network}.json`;
 const key = process.env.CALLBOOK_DEPLOYER_KEY;
 if (!key && network !== "local") fail("CALLBOOK_DEPLOYER_KEY missing from .env");
 const account = key ? privateKeyToAccount(key) : mnemonicToAccount(HARDHAT_MNEMONIC, { addressIndex: 0 });
+// The validator that posts scores to ERC-8004. The API and the MCP build read it from the deployment record.
+const validatorKey = process.env.CALLBOOK_VALIDATOR_KEY;
+const validator = process.env.CALLBOOK_VALIDATOR || (validatorKey ? privateKeyToAccount(validatorKey).address : null);
 
 const transport = http(net.rpc);
 const publicClient = createPublicClient({ chain: net.chain, transport });
@@ -89,6 +92,7 @@ async function main() {
   const balance = await publicClient.getBalance({ address: account.address });
   console.log(`\n  ${network} (chain ${chainId}) · deployer ${account.address}`);
   console.log(`  balance   ${formatEther(balance)} USDC`);
+  console.log(`  validator ${validator ?? "none: set CALLBOOK_VALIDATOR_KEY or CALLBOOK_VALIDATOR to record it"}`);
 
   if (network !== "local" && existsSync(OUT)) {
     fail(`${OUT} already exists: ${readFileSync(OUT, "utf8").trim()}\n  Refusing to redeploy.`);
@@ -138,6 +142,7 @@ async function main() {
         deployer: account.address,
         contracts: { callbook: callbook.address },
         fromBlock: Number(callbook.block), // where readers (API, verify, runner) start scanning
+        ...(validator ? { validator } : {}),
         txs: { callbook: callbook.hash, ...(identityTx ? { mockIdentityRegistry: identityTx } : {}) },
         external: { identityRegistry: identity, mockIdentityRegistry: identityTx !== null },
         deployedAt: new Date().toISOString(),

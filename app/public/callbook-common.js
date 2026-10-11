@@ -9,6 +9,9 @@ window.Callbook = (function () {
   var ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
   var params = new URLSearchParams(location.search);
   var wantMock = params.get("mock") === "1";
+  // ?net=testnet: Arena's frozen testnet month (scripts/export-testnet-archive.js) instead of the live API.
+  var wantTestnet = params.get("net") === "testnet";
+  var ARCHIVE = "/data/arena-testnet";
 
   async function json(url) {
     var res = await fetch(url, { headers: { accept: "application/json" } });
@@ -21,17 +24,23 @@ window.Callbook = (function () {
   function loadIndex() { return (indexOnce = indexOnce || loadIndexNow()); }
   async function loadIndexNow() {
     if (wantMock) return rebase(await json("/data/callbook-mock.json"));
+    if (wantTestnet) return loadArchive();
     try { return await json("/api/callbook"); } catch (e) { /* no API here */ }
     try { return await json("/data/callbook.json"); } catch (e) { /* no export yet */ }
     return rebase(await json("/data/callbook-mock.json"));
   }
+  // The testnet month, read once; null when the page has no archive (a local run without the export).
+  var archiveOnce = null;
+  function loadArchive() { return (archiveOnce = archiveOnce || json(ARCHIVE + ".json")); }
   async function loadCaller(id) {
     if (!ID_RE.test(id || "")) throw new Error("That isn’t a record id.");
+    if (wantTestnet) return json(ARCHIVE + "-caller-" + encodeURIComponent(id) + ".json");
     try { return rebase(await json("/api/callbook/caller/" + encodeURIComponent(id))); } catch (e) { /* no API here */ }
     return rebase(await json("/data/callbook-caller-" + encodeURIComponent(id) + ".json"));
   }
   async function loadBook(id) {
     if (!ID_RE.test(id || "")) throw new Error("That isn’t an agent id.");
+    if (wantTestnet) return json(ARCHIVE + "-book-" + encodeURIComponent(id) + ".json");
     var file = "/data/callbook-book-" + encodeURIComponent(id) + ".json";
     if (wantMock || id.indexOf("mock-") === 0) return rebase(await json(file));
     try { return await json("/api/callbook/book/" + encodeURIComponent(id)); } catch (e) { /* no API here */ }
@@ -357,6 +366,8 @@ window.Callbook = (function () {
   // What to call where the books live. Only live data is "on Arc".
   function where(d) {
     var mode = d && d.mode;
+    if (d && d.archive) return { status: "Testnet history", chain: "On Arc testnet", live: false,
+      tip: d.note || "Arena on Arc testnet, frozen when it moved to mainnet. Scored with the same rules." };
     if (mode === "live") return { status: "Live on Arc", chain: "On Arc", live: true,
       tip: "Predictions are recorded and revealed on Arc, and scores are published to an open registry on Arc (ERC-8004)." };
     if (mode === "replay") return { status: "Replay over real prices", chain: "On chain", live: false,
@@ -376,23 +387,23 @@ window.Callbook = (function () {
   // Under two weeks of record, ratios like Sharpe are shown but greyed.
   var YOUNG_DAYS = 14;
 
-  /** A number that counts up from 0 the first time it scrolls into view (at once with reduced motion). */
+  /**
+   * A number that counts up briefly when it arrives on screen. Off screen (or with reduced motion) it is
+   * simply written: a figure waiting at 0 for a scroll read as missing data.
+   */
+  var COUNT_MS = 600;
   function countUp(el, to, fmt) {
     fmt = fmt || int;
     if (!el || !isNum(to)) return;
-    if (reduce || !window.IntersectionObserver || !window.requestAnimationFrame) { el.textContent = fmt(to); return; }
-    el.textContent = fmt(0);
-    var io = new IntersectionObserver(function (es) {
-      if (!es.some(function (e) { return e.isIntersecting; })) return;
-      io.disconnect();
-      var t0 = performance.now(), dur = 900;
-      (function step(t) {
-        var k = Math.min(1, (t - t0) / dur);
-        el.textContent = fmt(to * (1 - Math.pow(1 - k, 3)));
-        if (k < 1) requestAnimationFrame(step);
-      })(t0);
-    });
-    io.observe(el);
+    var r = el.getBoundingClientRect();
+    var onScreen = r.bottom > 0 && r.top < (window.innerHeight || 0) && r.width > 0;
+    if (reduce || !onScreen || !window.requestAnimationFrame) { el.textContent = fmt(to); return; }
+    var t0 = performance.now();
+    (function step(t) {
+      var k = Math.min(1, Math.max(0, (t - t0) / COUNT_MS));
+      el.textContent = fmt(to * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(step);
+    })(t0);
   }
   /** A faint light that follows the pointer across a card (.ar-glow in callbook-arena.css). */
   function glow(el) {
@@ -441,7 +452,128 @@ window.Callbook = (function () {
     return '<span class="cb-skill ' + esc(s.level) + '" tabindex="0" data-tip="' + esc(skillTip(s)) + '">' + body + '<span class="cb-skill-l">' + esc(own(LEVELS, s.level)) + "</span></span>";
   }
 
+  // The Arena tab bar, with motion (styles in callbook.css): the current tab's pill, which a
+  // view transition slides from the last page's tab to this one; a softer pill that glides
+  // after the pointer; and, on a phone, where the bar scrolls, the current tab brought into view.
+  // It runs as soon as this script does, so the pill is there for the transition's first frame.
+  (function views() {
+    var bar = document.getElementById("views");
+    var here = bar && bar.querySelector('[aria-current="page"]');
+    if (!here) return;
+    var pill = document.createElement("span"), hover = document.createElement("span");
+    pill.className = "cb-pill";
+    hover.className = "cb-hover";
+    pill.setAttribute("aria-hidden", "true");
+    hover.setAttribute("aria-hidden", "true");
+    bar.insertBefore(hover, bar.firstChild);
+    bar.insertBefore(pill, bar.firstChild);
+    var place = function (el, a) { el.style.width = a.offsetWidth + "px"; el.style.transform = "translateX(" + a.offsetLeft + "px)"; };
+    // Put the pill on the current tab at once (no slide), and keep that tab in view.
+    var settle = function () {
+      pill.style.transition = "none";
+      place(pill, here);
+      void pill.offsetWidth;
+      pill.style.transition = "";
+      if (bar.scrollWidth > bar.clientWidth) bar.scrollLeft = here.offsetLeft - (bar.clientWidth - here.offsetWidth) / 2;
+    };
+    settle();
+    bar.classList.add("moving");
+    // The fonts and the final layout can still change the tabs' widths.
+    window.addEventListener("load", settle);
+    window.addEventListener("resize", settle);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
+
+    var links = bar.querySelectorAll("a");
+    Array.prototype.forEach.call(links, function (a) {
+      // The pointer pill appears where the pointer comes in, then glides from tab to tab.
+      a.addEventListener("pointerenter", function () {
+        if (!hover.classList.contains("on")) {
+          hover.classList.add("jump");
+          place(hover, a);
+          void hover.offsetWidth;
+          hover.classList.remove("jump");
+        } else {
+          place(hover, a);
+        }
+        hover.classList.add("on");
+      });
+    });
+    bar.addEventListener("pointerleave", function () { hover.classList.remove("on"); });
+
+    // Where pages can't morph into each other (no cross-page view transitions), the pill
+    // slides to the clicked tab first and then the page changes. Not with reduced motion.
+    var calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if ("onpagereveal" in window || calm) return;
+    Array.prototype.forEach.call(links, function (a) {
+      a.addEventListener("click", function (e) {
+        if (a === here || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        place(pill, a);
+        setTimeout(function () { location.href = a.href; }, 240);
+      });
+    });
+  })();
+
+  // An engraved medallion, as on Kraken's bonus tiers: two rings with fine ticks between them and a
+  // soft disc for the icon, in currentColor. medals() fills every [data-medal="icon"] on the page.
+  function medal() {
+    var ticks = "";
+    for (var i = 0; i < 72; i++) {
+      var a = i * 5 * Math.PI / 180, long = i % 6 === 0, r1 = long ? 37 : 38.5, r2 = 42;
+      ticks += '<line x1="' + (r1 * Math.cos(a)).toFixed(2) + '" y1="' + (r1 * Math.sin(a)).toFixed(2) + '" x2="' + (r2 * Math.cos(a)).toFixed(2) + '" y2="' + (r2 * Math.sin(a)).toFixed(2) + '"' + (long ? ' stroke-opacity=".7"' : "") + "/>";
+    }
+    return '<svg class="rings" viewBox="-50 -50 100 100" aria-hidden="true" fill="none" stroke="currentColor">' +
+      '<circle r="47" stroke-opacity=".28" stroke-width="1"/><circle r="44.5" stroke-opacity=".5" stroke-width=".8"/>' +
+      '<g stroke-opacity=".35" stroke-width=".7">' + ticks + "</g>" +
+      '<circle r="34" stroke-opacity=".55" stroke-width=".9"/>' +
+      '<circle r="26" fill="currentColor" fill-opacity=".09" stroke-opacity=".3" stroke-width=".7"/></svg>';
+  }
+  function medals() {
+    Array.prototype.forEach.call(document.querySelectorAll("[data-medal]"), function (el) { el.innerHTML = medal() + U.icon(el.getAttribute("data-medal")); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-ic]"), function (el) { el.innerHTML = U.icon(el.getAttribute("data-ic")); });
+  }
+
+  // ------------------------------------------------------ testnet history
+  // On ?net=testnet: a note at the top saying what this is, and links to other records stay in the archive.
+  var ARCHIVE_PAGES = /^\/(arena-leaderboard|arena-bot|arena-caller|arena-profile|arena\/p\/)/;
+  function archiveLinks() {
+    var main = document.getElementById("main");
+    if (main && !document.getElementById("net-note")) {
+      var note = document.createElement("p");
+      note.className = "cb-netnote";
+      note.id = "net-note";
+      note.innerHTML = "<b>Testnet history.</b> Arena on Arc testnet, 8–10 Oct 2026, frozen when it moved to mainnet. " +
+        '<a href="' + esc(location.pathname) + '">See live mainnet <span aria-hidden="true">→</span></a>';
+      var views = document.getElementById("views");
+      main.insertBefore(note, views ? views.nextSibling : main.firstChild);
+    }
+    document.addEventListener("click", function (e) {
+      var a = e.target.closest && e.target.closest("a[href]");
+      if (!a || a.target === "_blank" || a.origin !== location.origin || !ARCHIVE_PAGES.test(a.pathname) || a.closest("#net-note")) return;
+      var u = new URL(a.href);
+      if (u.searchParams.get("net")) return;
+      u.searchParams.set("net", "testnet");
+      a.href = u.pathname + u.search + u.hash;
+    }, true);
+  }
+  if (wantTestnet) {
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", archiveLinks);
+    else archiveLinks();
+  }
+  // The top bar names Arena's network on Arena pages (the agents app's own config says testnet).
+  loadIndex().then(function (d) {
+    if (!d || !U.fixNet) return;
+    U.fixNet(d.archive ? "Arc testnet · history" : "Arc", d.explorer);
+  }).catch(function () { /* the label stays as the app's */ });
+  // The Mainnet / Testnet switch on the leaderboard (a .cb-netsw group of two links).
+  document.querySelectorAll(".cb-netsw a").forEach(function (a) {
+    var isTestnet = /[?&]net=testnet\b/.test(a.getAttribute("href") || "");
+    if (isTestnet === wantTestnet) a.setAttribute("aria-current", "page");
+  });
+
   return {
+    wantTestnet: wantTestnet, loadArchive: loadArchive,
+    medal: medal, medals: medals,
     skillHtml: skillHtml, skillTip: skillTip, skillPanel: skillPanel, countUp: countUp, glow: glow, levelLine: levelLine, RECORD: RECORD, skillRank: skillRank, LEVELS: LEVELS,
     own: own, nameOf: nameOf, movedTag: movedTag, profileHref: profileHref, moreFrom: moreFrom, scoreParts: scoreParts, identicon: identicon, ADDR_RE: ADDR_RE, YOUNG_DAYS: YOUNG_DAYS, challengeLine: challengeLine, isHttp: isHttp, RULES: RULES, scoreOf: scoreOf, scoreWhy: scoreWhy, periodAt: periodAt, eodOf: eodOf, where: where, costsText: costsText, loadIndex: loadIndex, loadBook: loadBook, loadCaller: loadCaller, params: params, wantMock: wantMock, ID_RE: ID_RE,
     pct: pct, pctHtml: pctHtml, dd: dd, num: num, int: int, isNum: isNum, shortHash: shortHash, txLink: txLink,

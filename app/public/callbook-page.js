@@ -8,7 +8,9 @@
 (function () {
   "use strict";
   var U = window.ReinsUI, C = window.Callbook, esc = U.esc;
-  var $ = function (id) { return document.getElementById(id); };
+  // The leaderboard page (/arena-leaderboard) has only some of these sections: a missing one
+  // gets a detached stand-in, so filling it does nothing instead of stopping the page.
+  var $ = function (id) { return document.getElementById(id) || document.createElement("div"); };
   U.topbar("callbook");
 
   // The guide is its own page now: old links to its sections go there.
@@ -339,7 +341,7 @@
       f("Ranking metric", esc(B.metric)) +
       f("Predictions scored", C.int(B.scored())) +
       f("Updated", t1 ? esc(C.stamp(t1)) : "—");
-    $("board-lede").innerHTML = B.lede + ' <a href="/arena-guide#how">How scoring works →</a>';
+    $("board-lede").innerHTML = B.lede + ' <a href="/arena-rules">How scoring works →</a>';
     $("pending").hidden = ranked;
     $("pending-p").textContent = "Ranks appear once the board has " + RANK_MIN + " " + B.noun[1] + " and " + RANK_DAYS + " days of record. Until then, " + B.noun[1] + " are listed by record length.";
     $("fn-a").textContent = (ranked ? "Ranked by " + B.metric.replace(/, 0–100$/, "").toLowerCase() : "Listed by record length until ranks appear") + " · " + B.foot + " · ";
@@ -473,14 +475,51 @@
     $("rec-go").href = href;
   }
 
+  // While no real record is far enough along to show off (low scores here are mostly young
+  // records), the hero card shows an example of a full record, labelled as one everywhere it
+  // could be mistaken for live: the kicker, the byline, a badge and the link. A real record
+  // takes its place as soon as one scores SHOWCASE_MIN.
+  var SHOWCASE_MIN = 50;
+  var EXAMPLE = {
+    name: "Momentum, an example", by: "An illustration of a full record, not a live agent",
+    score: 82, level: "Full record", calls: 412, ret: 0.184,
+    curve: [1, 1.012, 1.004, 1.031, 1.026, 1.052, 1.047, 1.071, 1.09, 1.083, 1.112, 1.128, 1.121, 1.149, 1.166, 1.184],
+  };
+  function heroExample() {
+    $("rec").classList.add("is-example");
+    $("rec-k").textContent = "Example record";
+    $("rec-n").textContent = EXAMPLE.name;
+    $("rec-by").textContent = EXAMPLE.by;
+    C.countUp($("rec-score"), EXAMPLE.score);
+    $("rec-bar").style.width = EXAMPLE.score + "%";
+    $("rec-level").innerHTML = esc(EXAMPLE.level) + ' <span class="ar-eg">Example</span>';
+    $("rec-calls").textContent = C.int(EXAMPLE.calls);
+    $("rec-hidden").innerHTML = "0<small>none kept back</small>";
+    $("rec-ret").innerHTML = C.pctHtml(EXAMPLE.ret);
+    $("rec-last").textContent = "Illustration";
+    $("rec-curve").innerHTML = curve({ curve: EXAMPLE.curve.map(function (v, i) { return { t: i, v: v }; }) });
+    $("rec-go").innerHTML = 'See the live records <span aria-hidden="true">→</span>';
+    $("rec-go").href = "/arena-leaderboard";
+  }
+
   // --------------------------------------------------------- live proof
   function proof() {
     var s = D.stats || {}, W = C.where(D);
-    var tracked = (s.books || 0) + (s.callers || 0);
-    C.countUp($("st-sealed"), (s.sealed || 0) + (s.locked || 0));
-    C.countUp($("st-books"), tracked);
-    $("st-books-s").textContent = !tracked ? "the first records arrive soon" : C.int(s.books || 0) + " agents · " + C.int(s.callers || 0) + " people";
-    C.countUp($("st-revealed"), (s.revealed || 0) + (s.lockedRevealed || 0));
+    // On live mainnet the totals also count the frozen testnet month, and say so.
+    var archive = W.live && C.loadArchive ? C.loadArchive().catch(function () { return null; }) : Promise.resolve(null);
+    archive.then(function (a) {
+      if (!$("st-sealed")) return; // a page without the totals
+      var t = (a && a.stats) || {};
+      var made = function (x) { return (x.sealed || 0) + (x.locked || 0); }, shown = function (x) { return (x.revealed || 0) + (x.lockedRevealed || 0); };
+      var agents = (s.books || 0) + (t.books || 0), people = (s.callers || 0) + (t.callers || 0), tracked = agents + people;
+      var tn = made(t), tag = tn ? " · incl. " + C.int(tn) + " on testnet" : "";
+      C.countUp($("st-sealed"), made(s) + tn);
+      var box = $("st-sealed").closest("div"), sub = box && box.querySelector(".cb-st-sub");
+      if (sub) sub.textContent = "before the market moved" + tag;
+      C.countUp($("st-books"), tracked);
+      $("st-books-s").textContent = !tracked ? "the first records arrive soon" : C.int(agents) + " agents · " + C.int(people) + " people" + (t.books || t.callers ? ", mainnet and testnet" : "");
+      C.countUp($("st-revealed"), shown(s) + shown(t));
+    });
     // The latest score: the newest of every record's own, or a score event in the feed.
     var times = D.books.concat(D.callers).map(function (x) { return x.score && x.score.asOf; })
       .concat((D.feed || []).filter(function (f) { return f.kind === "validated"; }).map(function (f) { return f.t; })).filter(C.isNum);
@@ -516,6 +555,8 @@
   }
 
   // ------------------------------------------------------------- the page
+  // The testnet month (a small static file) is fetched alongside the records, so the totals don't wait for it after.
+  if (C.loadArchive && !C.wantTestnet) C.loadArchive().catch(function () {});
   C.loadIndex().then(function (d) {
     D = d;
     D.books = (D.books || []).filter(function (b) { return b && b.metrics; });
@@ -527,7 +568,8 @@
     $("foot-gen").textContent = "Paper predictions, scored at Hyperliquid prices. Not investment advice." + (D.generated ? " Updated " + C.stamp(Date.parse(D.generated) / 1000) + "." : "");
     $("foot-net").textContent = D.network || "Arc";
     var top = heroPick();
-    heroRecord(top);
+    if (top && (C.scoreOf(top.x) || 0) >= SHOWCASE_MIN) heroRecord(top);
+    else heroExample();
     proof();
     check(top);
     setBoard(new URLSearchParams(location.search).get("board") || "books", false);

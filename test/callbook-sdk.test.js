@@ -200,9 +200,14 @@ describe("refusals before anything is sent", () => {
     await assert.rejects(offline().lock({ coin: "ETH", side: "sideways" }), /isn't a side/);
   });
 
-  test("a network without a deployment names the fix", async () => {
-    const c = new CallbookClient({ network: "mainnet", key: keyOf(1), journal: false, markets: markets() });
-    await assert.rejects(c.myBooks(), /Arena isn't deployed on Arc mainnet yet .*Set ARENA_ADDRESS/);
+  test("mainnet resolves to its deployment record: contract, deploy block and validator, with nothing set", async () => {
+    const { callbookNetwork } = await import("../app/verify/callbook-network.js");
+    const record = JSON.parse(readFileSync(new URL("../deployments/callbook-mainnet.json", import.meta.url), "utf8"));
+    const net = callbookNetwork({ CALLBOOK_NETWORK: "mainnet" });
+    assert.equal(net.address.toLowerCase(), record.contracts.callbook.toLowerCase());
+    assert.equal(net.fromBlock, BigInt(record.fromBlock));
+    // Another contract on the same network doesn't borrow the record's deploy block.
+    assert.throws(() => callbookNetwork({ CALLBOOK_NETWORK: "mainnet", CALLBOOK_ADDRESS: "0x00000000000000000000000000000000000000a1" }), /FROM_BLOCK/);
   });
 
   test("the MCP server needs nothing set: without CALLBOOK_KEY it makes a key file once and keeps using it", () => {

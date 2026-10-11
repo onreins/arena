@@ -29,6 +29,7 @@ import { priceBook, intervalFor, resolveSymbol } from "./callbook-prices.js";
 import { maxOf, brief } from "./callbook-util.js";
 import { agentInfo, profileFor, profileFields, personProfile } from "./callbook-agents.js";
 import { evaluateCaller, callerToApi } from "./callbook-callers.js";
+import { crowdOf, crowdMetricsOut, consensusOut } from "./callbook-crowd.js";
 import { skillScore, hitOf, recordLevel } from "./callbook-skill.js";
 
 export * from "./callbook-chain.js";
@@ -213,13 +214,16 @@ export function tStat(xs) {
 /**
  * The 0–100 score posted to ERC-8004 (docs/CALLBOOK.md, "The score"):
  *
- *   score    = 100 × record × coverage × (0.6 × edge + 0.4 × risk)
- *   record   = min(1, days / 61)
+ *   score    = 100 × coverage × (0.6 × profit + 0.4 × edge) × (0.6 + 0.4 × risk)
  *   coverage = revealed / (revealed + missed + withheld)
- *   edge     = clamp(t / 3, 0, 1), t the t-statistic of the per-call returns
- *              (net of fees and funding) less beta × the market move, beta the
- *              book's average side when in a position
- *   risk     = clamp(1 − maxDrawdown / 10%, 0, 1) × min(1, exposure / 50%)
+ *   profit   = clamp(t / 3, 0, 1) when the returns add up above 0, else 0; t the
+ *              t-statistic of the per-call returns (net of fees and funding)
+ *   edge     = clamp(t / 3, 0, 1), t of the per-call returns less beta × the
+ *              market move, beta the book's average side when in a position
+ *   risk     = clamp(1 − maxDrawdown / 40%, 0, 1) × min(1, exposure / 50%)
+ *   level    = from the record's length (recordLevel), shown beside the score
+ *
+ * The weights and caps are SCORE_RULES.
  *
  * inputs: { days, revealed, missed, withheld, maxDrawdown, outcomes: [{ side, ret, market }] }
  * where `outcomes` are the periods in a position (revealed long/short, and withheld).
@@ -596,11 +600,24 @@ export async function buildCallbook({ chain, source, asOf, meta, validator, repo
       (book.kind === "free" ? callers : books).push({ summary: stub, detail: { ...stub, calls: [] }, feed: [], ev: null });
     }
   }
+  // The crowd: Arena's consensus and each caller's edge over it, from revealed open calls only.
+  // One vote per person (an agent linked to a wallet votes as that wallet); baseline and sample bots don't vote.
+  const linkedTo = new Map([...(chain.links ?? new Map())].map(([agent, l]) => [String(agent).toLowerCase(), l.wallet]));
+  const crowd = crowdOf(callers.filter((c) => c.ev).map((c) => ({
+    id: c.summary.id,
+    voter: linkedTo.get(String(c.summary.owner).toLowerCase()) ?? c.summary.owner,
+    excluded: Boolean(c.summary.baseline || c.summary.sample),
+    periods: c.ev.scored.periods,
+  })), { asOf });
+  const scoredCallers = callers.map((c) => {
+    const m = crowdMetricsOut(crowd.byCaller.get(c.summary.id)) ?? null;
+    return { ...c, summary: { ...c.summary, crowd: m }, detail: { ...c.detail, crowd: m } };
+  });
   const generated = new Date(asOf * 1000).toISOString();
-  const index = indexToApi({ meta: { ...meta, generated }, chain, books, callers });
+  const index = { ...indexToApi({ meta: { ...meta, generated }, chain, books, callers: scoredCallers }), consensus: consensusOut(crowd.consensus) };
   const details = new Map(books.map((b) => [b.summary.id, { ...meta, generated, ...b.detail }]));
-  const callerDetails = new Map(callers.map((c) => [c.summary.id, { ...meta, generated, ...c.detail }]));
-  return { index, details, callerDetails, evaluated: [...books, ...callers].map((b) => b.ev).filter(Boolean) };
+  const callerDetails = new Map(scoredCallers.map((c) => [c.summary.id, { ...meta, generated, ...c.detail }]));
+  return { index, details, callerDetails, evaluated: [...books, ...scoredCallers].map((b) => b.ev).filter(Boolean) };
 }
 
 /** agentId -> { name, description } for every linked agent, each read once; a failed read is just no card. */

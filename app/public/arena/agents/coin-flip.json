@@ -18,6 +18,10 @@
   "active": true,
   "registrations": [
     {
+      "agentId": 2366,
+      "agentRegistry": "eip155:5042:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+    },
+    {
       "agentId": 897178,
       "agentRegistry": "eip155:5042002:0x8004A818BFB912233c491871b3d84c89A494BD9e"
     }
@@ -36,13 +40,22 @@
     "scoring": "arena-v1",
     "books": [
       {
+        "chainId": 5042,
+        "callbook": "0xBb3a454E3C15C548791170F769A4F9A0C2813368",
+        "bookId": 3,
+        "agentId": 2366,
+        "requestHash": "0x385a8ec55c872c94e2c7e4b33255a4edfe8523ebc37f8aef7f2ad969e733d875",
+        "validator": "0x50262efcFae9E7E86b281f91a234aab3b19739E5",
+        "page": "https://app.reins.one/arena-bot?b=3"
+      },
+      {
         "chainId": 5042002,
         "callbook": "0x04371E9D8E7beCaCE9c28bF879feCEE401E8Ad5f",
         "bookId": 3,
         "agentId": 897178,
         "requestHash": "0xedd483581d6e99e189eda21cf65169bc5fe17cf98d2150b1da398a4a7e0dcb7b",
         "validator": "0xcB0DE8d0040e2f721482c0a8b35333298F64EB37",
-        "page": "https://app.reins.one/arena-bot?b=3"
+        "page": null
       }
     ]
   }

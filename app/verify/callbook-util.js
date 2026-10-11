@@ -91,6 +91,17 @@ export function restCounter({ url, token, prefix = "callbook:", fetch: doFetch =
 }
 
 /**
+ * The shared store's REST settings, { url, token } trimmed (a pasted value often
+ * carries a stray tab or space), or null: KV_REST_API_URL/KV_REST_API_TOKEN
+ * (Vercel KV) or UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN.
+ */
+export function sharedStoreEnv(env = process.env) {
+  const url = (env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL)?.trim();
+  const token = (env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN)?.trim();
+  return url && token ? { url, token } : null;
+}
+
+/**
  * The counter the environment asks for: a shared store when
  * KV_REST_API_URL/KV_REST_API_TOKEN (Vercel KV) or
  * UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are set, else memory. A
@@ -99,9 +110,9 @@ export function restCounter({ url, token, prefix = "callbook:", fetch: doFetch =
  */
 export function countersFromEnv(env = process.env, { now, log } = {}) {
   const memory = memoryCounter({ now });
-  const url = (env.KV_REST_API_URL ?? env.UPSTASH_REDIS_REST_URL)?.trim();
-  const token = (env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN)?.trim();
-  if (!url || !token) return memory;
+  const store = sharedStoreEnv(env);
+  if (!store) return memory;
+  const { url, token } = store;
   const shared = restCounter({ url, token, now });
   const safe = (fn) => async (...args) => {
     try {

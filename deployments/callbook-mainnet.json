@@ -1,0 +1,17 @@
+{
+  "network": "mainnet",
+  "chainId": 5042,
+  "deployer": "0x433CF615b23b16f7Ea35E4C45495b14fCB71972C",
+  "contracts": {
+    "callbook": "0xbb3a454e3c15c548791170f769a4f9a0c2813368"
+  },
+  "fromBlock": 25431106,
+  "txs": {
+    "callbook": "0x2b00257ee5da486848efe2992547cdf4735a95424ddae169d2b0601d91451198"
+  },
+  "external": {
+    "identityRegistry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+    "mockIdentityRegistry": false
+  },
+  "deployedAt": "2026-10-11T15:13:50.162Z"
+}

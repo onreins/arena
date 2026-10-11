@@ -346,6 +346,10 @@ test("the relayer: checks a signed lock off-chain, sends it, reveals it, and the
   assert.equal(built.index.books.length, 0);
   assert.deepEqual(built.index.feed.map((f) => f.kind).sort(), ["locked", "revealed"]);
   assert.equal(built.callerDetails.get(r.bookId).calls[0].lockTx, r.txHash);
+  // One caller is no crowd: the consensus is in the index, and the caller's edge over it is n/a, not 0.
+  assert.equal(built.index.consensus.rules.recentDays, 7);
+  assert.deepEqual([built.index.callers[0].crowd.withCrowd, built.index.callers[0].crowd.edge], [0, null]);
+  assert.equal(built.callerDetails.get(r.bookId).crowd.withCrowd, 0);
 });
 
 test("the relayer's limits: per account, and the daily gas budget", async (t) => {

@@ -79,11 +79,11 @@
   }
 
   // ------------------------------------------------------------- numbers
+  function card(lbl, val, sub, tip) {
+    return '<div class="scard"><div class="lbl"' + (tip ? ' data-tip="' + esc(tip) + '" tabindex="0"' : "") + ">" + esc(lbl) + (tip ? U.icon("info") : "") + '</div><div class="val">' + val + '</div><div class="sub2">' + sub + "</div></div>";
+  }
   function stats(x) {
     var m = x.metrics;
-    var card = function (lbl, val, sub, tip) {
-      return '<div class="scard"><div class="lbl"' + (tip ? ' data-tip="' + esc(tip) + '" tabindex="0"' : "") + ">" + esc(lbl) + (tip ? U.icon("info") : "") + '</div><div class="val">' + val + '</div><div class="sub2">' + sub + "</div></div>";
-    };
     var call = function (b) {
       return b ? esc(b.coin || "?") + " " + (b.side > 0 ? "up" : b.side < 0 ? "down" : "") + (b.status === "withheld" ? " · kept hidden" : "") : "no predictions yet";
     };
@@ -98,6 +98,25 @@
       card("Coverage", C.isNum(m.coverage) ? Math.round(m.coverage * 100) + "%" : "—",
         (m.withheld || m.unscorable ? esc(C.int(m.withheld)) + " kept hidden · " + esc(C.int(m.unscorable || 0)) + " unpriced" : "every prediction due was revealed"),
         "Predictions revealed, out of those due. One kept hidden counts as its worst result.");
+  }
+
+  // Its edge over the crowd (app/verify/callbook-crowd.js): shown once some of its calls had
+  // someone else's earlier view on the same coin and day to be measured against.
+  function crowd(x) {
+    var c = x.crowd, el = $("stats-crowd");
+    if (!c || !c.withCrowd) { if (el) el.hidden = true; return; }
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "stats-crowd"; el.className = "scards two cbk-stats";
+      $("stats").insertAdjacentElement("afterend", el);
+    }
+    var n = C.int(c.withCrowd) + " of its " + C.int(c.revealed) + " revealed calls had a crowd";
+    el.innerHTML =
+      card("Vs the crowd", C.pctHtml(c.edge, 2), (C.isNum(c.edge) ? "per call, " + (c.edge >= 0 ? "ahead of" : "behind") + " siding with the other callers · " : "") + esc(n),
+        "Average per call, after costs, less what siding with the other callers would have made. Only views locked before the call, on the same coin and day, count.") +
+      card("Sides with the crowd", C.isNum(c.agreement) ? Math.round(c.agreement * 100) + "%" : "—",
+        C.isNum(c.agreement) ? "of its calls went the crowd’s way" : "the crowd was split each time");
+    el.hidden = false;
   }
 
   // ------------------------------------------------------------- record
@@ -242,6 +261,7 @@
     header(x);
     validation(x);
     stats(x);
+    crowd(x);
     tape(x);
     report(x);
     chart(x);

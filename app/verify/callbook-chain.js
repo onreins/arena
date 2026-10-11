@@ -132,18 +132,39 @@ export function parseValidationRequest(requestURI, requestHash) {
 // "requested range too large" for more, even over a single block.
 export const MAX_EVENTS_PER_QUERY = 10;
 
+// A public RPC answers a burst with "rate limit exceeded" (Arc: -32005). That's
+// not a range it can't serve, so wait and ask again (1s, 2s, 4s, ...) rather than
+// halve: halving only sends more requests. Past the last try, its error stands.
+export const RATE_LIMIT_TRIES = 6;
+const RATE_LIMIT_FIRST_WAIT_MS = 1_000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isRateLimit(err) {
+  for (let e = err, depth = 0; e && depth < 5; e = e.cause, depth++) {
+    if (e.status === 429 || /rate limit|too many requests/i.test(String(e.details ?? e.message ?? ""))) return true;
+  }
+  return false;
+}
+
 /** Logs in unsorted order: block chunks, and event groups the RPC accepts. Callers sort. */
-async function getLogsChunked(client, { address, events, fromBlock, toBlock, chunk }) {
+async function getLogsChunked(client, { address, events, fromBlock, toBlock, chunk, wait = sleep }) {
   const out = [];
   for (let i = 0; i < events.length; i += MAX_EVENTS_PER_QUERY) {
     const group = events.slice(i, i + MAX_EVENTS_PER_QUERY);
     let size = chunk;
+    let limited = 0;
     for (let from = fromBlock; from <= toBlock;) {
       const to = from + size - 1n < toBlock ? from + size - 1n : toBlock;
       try {
         out.push(...(await client.getLogs({ address, events: group, fromBlock: from, toBlock: to, strict: false })));
         from = to + 1n;
+        limited = 0;
       } catch (err) {
+        if (isRateLimit(err)) {
+          if (++limited >= RATE_LIMIT_TRIES) throw err;
+          await wait(RATE_LIMIT_FIRST_WAIT_MS * 2 ** (limited - 1));
+          continue;
+        }
         // A range the RPC won't serve in one go: halve it and try again.
         if (size <= 1n) throw err;
         size /= 2n;
@@ -334,7 +355,7 @@ function applyValidationLog(v, log, at, validator) {
  * validation: { requests, responses }, blockTimes }
  * and is itself a valid `state` for the next call.
  */
-export async function readCallbook({ client, address, fromBlock = 0n, toBlock, validationRegistry, validator, state, chunk = DEFAULT_LOG_CHUNK }) {
+export async function readCallbook({ client, address, fromBlock = 0n, toBlock, validationRegistry, validator, state, chunk = DEFAULT_LOG_CHUNK, wait }) {
   const head = toBlock ?? (await client.getBlockNumber({ cacheTime: 0 })); // no cached head: a replay moves fast
   const s = state ?? {
     address: address.toLowerCase(),
@@ -356,7 +377,7 @@ export async function readCallbook({ client, address, fromBlock = 0n, toBlock, v
 
   const addresses = [address, ...(validationRegistry ? [validationRegistry] : [])];
   const logs = await getLogsChunked(client, {
-    address: addresses, events: [...CALLBOOK_EVENTS, ...VALIDATION_EVENTS], fromBlock: from, toBlock: head, chunk: BigInt(chunk),
+    address: addresses, events: [...CALLBOOK_EVENTS, ...VALIDATION_EVENTS], fromBlock: from, toBlock: head, chunk: BigInt(chunk), wait,
   });
   logs.sort((x, y) => (x.blockNumber === y.blockNumber ? x.logIndex - y.logIndex : x.blockNumber < y.blockNumber ? -1 : 1));
   await blockTimes(client, logs, s.blockTimes);

@@ -234,6 +234,13 @@
 /* ------------------------------------------------------------------ the two tabs */
 .arena .cb-views { background: rgba(14, 16, 25, .78); box-shadow: inset 0 0 0 1px var(--ar-edge), 0 10px 30px -12px rgba(0, 0, 0, .7); }
 .arena .cb-views a[aria-current="page"] { color: #0b0c12; background: linear-gradient(120deg, #fff, #d9d3ff); box-shadow: 0 0 18px -4px rgba(139, 124, 255, .7); }
+.arena .cb-views.moving a[aria-current="page"] { background: none; box-shadow: none; }
+.arena .cb-pill { background: linear-gradient(120deg, #fff, #d9d3ff); box-shadow: 0 0 18px -4px rgba(139, 124, 255, .7); }
+/* The hero's example record (callbook-page.js heroExample): no live pulse, and an Example badge. */
+.ar-rec.is-example .pulse { display: none; }
+.ar-eg { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 99px; background: rgba(240, 180, 80, .16); color: #f3c47a; font: 600 11px var(--sans); letter-spacing: .04em; text-transform: uppercase; vertical-align: 1px; }
+/* The leaderboard's own page: the board opens right under the tabs, as the other Arena pages do. */
+.cb-lbpage .cb-board { margin-top: 36px; }
 
 /* ------------------------------------------------------------------ the ticker */
 .ar-ticker { margin-top: 18px; display: flex; align-items: center; gap: 14px; height: 44px; padding: 0 0 0 14px; border-radius: 12px; overflow: hidden;
@@ -502,3 +509,15 @@
 @media (min-width: 1765px) {
   main.arena { padding-inline: calc((100vw - var(--side) - 1440px) / 2); }
 }
+
+/* Live mainnet or the frozen testnet month: a two-way switch on the leaderboard, and a note on archive pages. */
+.cb-netsw { display: inline-flex; margin-top: 14px; padding: 3px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px; background: rgba(255, 255, 255, .03); }
+.cb-netsw a { padding: 6px 12px; border-radius: 6px; color: #8d93a6; font: 500 13px/1 var(--sans); white-space: nowrap; transition: color 140ms ease, background-color 140ms ease; }
+.cb-netsw a:hover { color: #f2f3f7; }
+.cb-netsw a[aria-current="page"] { background: rgba(255, 255, 255, .08); color: #f2f3f7; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1); }
+.cb-netsw a:focus-visible { outline: 2px solid #8b7cff; outline-offset: 2px; }
+.cb-netnote { margin: 14px 0 0; padding: 10px 14px; border: 1px solid rgba(139, 124, 255, .3); border-radius: 10px; background: rgba(139, 124, 255, .07); color: #b4b8c6; font: 400 13.5px/1.5 var(--sans); }
+.cb-netnote b { color: #f2f3f7; font-weight: 600; }
+.cb-netnote a { color: #c4bcff; white-space: nowrap; }
+.cb-netnote a:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) { .cb-netsw a { transition: none; } }

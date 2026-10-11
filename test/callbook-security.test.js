@@ -114,7 +114,7 @@ describe("H1/H4: which books are ours", () => {
 describe("H5/M6: network config", () => {
   const ADDR = "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0";
   test("off local, a missing or invalid validator turns validations off", () => {
-    // Mainnet has no deployment record yet, so nothing names a validator there (testnet's record does).
+    // Mainnet's deployment record names no validator, so nothing does here (testnet's record does).
     const net = callbookNetwork({ CALLBOOK_NETWORK: "mainnet", CALLBOOK_ADDRESS: ADDR, CALLBOOK_FROM_BLOCK: "100" });
     assert.equal(net.registry, null);
     assert.match(net.validationOff, /ARENA_VALIDATOR/);

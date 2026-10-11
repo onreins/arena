@@ -354,6 +354,11 @@ async function main() {
   }
   const server = createCallbookMcpServer({ client, keyFile: own.file });
   await server.connect(new StdioServerTransport());
+  // A client stops the server by closing stdin. Exit then, even mid-call: a read
+  // still waiting on the chain would otherwise keep it alive, and using the RPC.
+  const quit = () => process.exit(0);
+  process.stdin.once("end", quit);
+  process.stdin.once("close", quit);
   console.error(`reins-mcp ${VERSION}: ${client.address} on ${client.network}`);
   if (own.created) console.error(`reins-mcp: made a new key in ${own.file}. Back it up: it reveals your calls and keeps your record.`);
 }

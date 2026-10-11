@@ -59,6 +59,8 @@ svg { display: block; }
 .side a.item + a.item { margin-top: 1px; }
 .side a.item:hover { background: var(--chip); color: var(--ink); }
 .side a.item[aria-current="page"] { color: var(--ink); }
+.side-legal { flex: none; display: flex; gap: 8px; padding: 0 20px 14px; color: var(--ink-3); font-size: 12.5px; }
+.side-legal a { color: var(--ink-3); } .side-legal a:hover { color: var(--ink); }
 .side a.item .ext { margin-left: auto; width: 12px; height: 12px; color: var(--ink-4); }
 .promo { position: relative; flex: none; margin: 12px 20px 16px; height: 147px; border-radius: 14px; background: var(--card); overflow: hidden; padding: 16px; display: flex; flex-direction: column; justify-content: flex-end; }
 .promo .rings { position: absolute; left: -40px; top: -60px; width: 220px; height: 220px; }

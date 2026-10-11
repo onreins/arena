@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>Verify a prediction · Arena by Reins</title>
+<meta name="description" content="Check one real Arena by Reins prediction end to end, from the chain and public Hyperliquid prices, and get the tools to check any other.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;1,400;1,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/home.css">
+<link rel="stylesheet" href="/callbook.css">
+<link rel="stylesheet" href="/callbook-arena.css">
+<link rel="stylesheet" href="/mobile.css">
+<style>
+  /* The verify page only: the timeline of one prediction, and the hash fields. */
+  .vf-lede { margin-top: 10px; color: var(--ink-3); font-size: 14px; line-height: 1.55; max-width: 64ch; }
+  .vf-note { margin-top: 12px; color: var(--ink-3); font-size: 13.5px; line-height: 1.55; }
+  .vf-note b { color: var(--ink-2); font-weight: 500; }
+  .vf-mono { font: 400 12.5px/1.6 var(--mono); overflow-wrap: anywhere; word-break: break-all; color: var(--ink-2); }
+  .vf-fields { margin-top: 14px; display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 8px 16px; font-size: 13.5px; line-height: 1.5; }
+  .vf-fields dt { font: 500 12.5px/1.5 var(--mono); color: var(--ink); overflow-wrap: anywhere; }
+  .vf-fields dd { color: var(--ink-3); min-width: 0; }
+  .vf-tl { list-style: none; margin: 18px 0 0; padding: 0; }
+  .vf-tl > li { position: relative; padding: 0 0 22px 30px; min-width: 0; }
+  .vf-tl > li::before { content: ""; position: absolute; left: 6px; top: 16px; bottom: -2px; width: 2px; background: var(--line-2, var(--line)); }
+  .vf-tl > li:last-child { padding-bottom: 0; }
+  .vf-tl > li:last-child::before { display: none; }
+  .vf-dot { position: absolute; left: 0; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--card, #111); box-shadow: inset 0 0 0 2px var(--blue); }
+  .vf-tl > li.done .vf-dot { background: var(--blue); }
+  .vf-tl h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font: 600 15px var(--sans); }
+  .vf-tl h3 small { color: var(--ink-3); font: 400 12.5px var(--mono); }
+  .vf-tl .vf-what { margin-top: 6px; font-size: 14px; line-height: 1.55; color: var(--ink-2); min-width: 0; }
+  .vf-tl .vf-what .cb-hash { white-space: normal; }
+  .vf-tl .vf-why { margin-top: 6px; color: var(--ink-3); font-size: 13px; line-height: 1.5; }
+  .vf-tl .vf-why::before { content: "Why it can’t be faked: "; color: var(--ink-2); font-weight: 500; }
+  .vf-sum { margin-top: 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; max-width: 420px; font-size: 13.5px; }
+  .vf-sum dt { color: var(--ink-3); }
+  .vf-sum dd { text-align: right; font-family: var(--mono); }
+  .vf-sum .vf-total { padding-top: 6px; border-top: 1px solid var(--line); color: var(--ink); font-weight: 500; }
+  .vf-empty { margin-top: 14px; padding: 18px; border-radius: 10px; background: var(--chip); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-3); font-size: 14px; line-height: 1.55; }
+  .vf-empty b { color: var(--ink); font-weight: 500; }
+  .vf-links { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; list-style: none; padding: 0; }
+  .vf-links a { display: block; padding: 12px; border-radius: 10px; background: var(--chip); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font-weight: 500; font-size: 14px; }
+  .vf-links a:hover { box-shadow: inset 0 0 0 1px var(--line-2, var(--line)); }
+  .vf-links small { display: block; margin-top: 4px; color: var(--ink-3); font-weight: 400; font-size: 12.5px; }
+  @media (max-width: 640px) {
+    .vf-fields { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+    .vf-fields dd { margin-bottom: 8px; }
+    .vf-links { grid-template-columns: minmax(0, 1fr); }
+  }
+  #vf-soon .hm-panel { margin-top: 24px; }
+</style>
+
+<a class="skip" href="#main">Skip to content</a>
+<aside id="side"></aside>
+<header id="top"></header>
+
+<main id="main" class="cb cb-guide arena">
+  <!-- Three pages: the track records, the guide, and this one. -->
+  <nav class="cb-views" aria-label="Arena" id="views">
+    <a href="/arena">Track records</a>
+    <a href="/arena-leaderboard">Leaderboard</a>
+    <a href="/arena-marketplace">Marketplace</a>
+    <a href="/arena-guide">Guide</a>
+    <a href="/arena-docs" aria-current="page">Docs</a>
+  </nav>
+  <nav class="cb-subviews" aria-label="Docs">
+    <a href="/arena-docs">Overview</a>
+    <a href="/arena-rules">Scoring rules</a>
+    <a href="/arena-verify" aria-current="page">Verify</a>
+    <a href="/arena-build">Build</a>
+    <a href="/arena-faq">FAQ</a>
+  </nav>
+
+  <div class="cb-view">
+  <!-- Until Arena is on mainnet: the walkthrough's first real example should be a mainnet prediction.
+       callbook-verify.js swaps this for the page below once the API names mainnet. -->
+  <div id="vf-soon">
+    <header class="cb-guide-h">
+      <p class="cb-eyebrow">Verify · coming with mainnet</p>
+      <h2>Check a prediction yourself.</h2>
+      <p class="cb-guide-not">Soon this page follows one real prediction from the moment it’s recorded on Arc to its score, with the contracts, the exact fingerprint recipe, and the commands to check any other. It opens when Arena goes live on Arc mainnet.</p>
+    </header>
+    <section class="hm-panel" aria-labelledby="soon-h">
+      <div class="hm-panel-h"><h2 id="soon-h">Until then</h2></div>
+      <ul class="vf-links">
+        <li><a href="/arena-guide#recheck">Check any score now<small>One command rebuilds a score from the chain</small></a></li>
+        <li><a href="/arena-rules">Scoring rules<small>How every score is built, in full</small></a></li>
+        <li><a href="https://github.com/onreins/arena" target="_blank" rel="noopener">Source code<small>github.com/onreins/arena</small></a></li>
+      </ul>
+    </section>
+  </div>
+
+  <div id="vf-live" hidden>
+  <header class="cb-guide-h">
+    <p class="cb-eyebrow">Verify</p>
+    <h2>Check a prediction yourself.</h2>
+    <p class="cb-guide-not">Every prediction is recorded on Arc as a hidden fingerprint before the market moves. Later it is revealed and scored at public Hyperliquid prices. Below is one real prediction, step by step, and the tools to check any other.</p>
+  </header>
+
+  <!-- 1. Where everything lives. Read from the API at runtime: never hard-coded. -->
+  <section class="hm-panel" id="contracts" aria-labelledby="c-h">
+    <div class="hm-panel-h"><h2 id="c-h">The contracts</h2><span id="c-net"></span></div>
+    <p class="vf-lede">Everything below is on these contracts. Open them on the explorer and read the events yourself.</p>
+    <dl class="cb-addr" id="c-addr"><div><dt>Loading</dt><dd><span class="muted">Reading the records…</span></dd></div></dl>
+  </section>
+
+  <!-- 2. What goes into the hash (contracts/Callbook.sol symbolCallHashOf; app/client/callbook-crypto.js). -->
+  <section class="hm-panel" id="recipe" aria-labelledby="r-h">
+    <div class="hm-panel-h"><h2 id="r-h">What goes into the fingerprint</h2></div>
+    <p class="vf-lede">When a prediction is made, only this hash goes on chain. The prediction itself stays hidden until its time is up.</p>
+    <div class="cb-term">
+      <div class="cb-term-bar">
+        <span class="cb-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="cb-term-t">Arena contract · symbolCallHashOf</span>
+      </div>
+      <pre class="cb-term-body" id="r-code" tabindex="0" aria-label="The hash"></pre>
+    </div>
+    <dl class="vf-fields" id="r-fields"></dl>
+
+    <h3 class="cb-eyebrow" style="margin-top:22px">How the salt is made</h3>
+    <p class="vf-lede">The salt is 32 secret bytes. Without it, nobody can test guesses against the hash. It is made from the predictor’s own key, so it can be made again later, and it is published in the reveal.</p>
+    <div class="cb-term">
+      <div class="cb-term-bar">
+        <span class="cb-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="cb-term-t">The salt</span>
+      </div>
+      <pre class="cb-term-body" id="r-salt" tabindex="0" aria-label="How the salt is made"></pre>
+    </div>
+    <details class="cb-proof"><summary>Other kinds of records</summary>
+      <dl class="vf-fields">
+        <dt>lockedHashOf</dt><dd>A record limited to a list of coins: the tag is keccak256("callbook.locked"), and the record id, prediction number and coin’s place in the list stand in for the account, nonce and coin.</dd>
+        <dt>callHashOf</dt><dd>Reins’s own agents, one prediction per round: keccak256(abi.encode(contract, chainId, recordId, round, coinIndex, side, salt)).</dd>
+      </dl>
+    </details>
+  </section>
+
+  <!-- 3. One real prediction, end to end. -->
+  <section class="hm-panel" id="example" aria-labelledby="e-h">
+    <div class="hm-panel-h"><h2 id="e-h">One real prediction, end to end</h2><span id="e-who"></span></div>
+    <div id="e-body" aria-live="polite"><p class="vf-note">Reading the latest revealed prediction…</p></div>
+  </section>
+
+  <!-- 4. Rebuild any score: the same command as the guide (callbook-guide.js). -->
+  <section class="hm-panel cb-verify" id="recompute" aria-labelledby="v-h">
+    <div class="hm-panel-h"><h2 id="v-h">Recompute it yourself</h2></div>
+    <p class="vf-lede">One command rebuilds any score from the chain and Hyperliquid’s public prices, with no keys and no trust in Reins. It compares its result with the score posted on chain. If they differ, we got it wrong.</p>
+    <div class="cb-term">
+      <div class="cb-term-bar">
+        <span class="cb-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+        <label class="cb-term-pick"><span class="sr-only">Record to check</span><select id="v-book"></select></label>
+        <span id="v-copy"></span>
+      </div>
+      <pre class="cb-term-body" id="v-cmd" tabindex="0" aria-label="The command"></pre>
+    </div>
+    <p class="vf-note">Code: <a href="https://github.com/onreins/arena" target="_blank" rel="noopener">github.com/onreins/arena</a>. Node.js 20 or newer.</p>
+
+    <h3 class="cb-eyebrow" style="margin-top:22px">Check one fingerprint by hand</h3>
+    <p class="vf-lede">Read the two hidden inputs from the chain with <a href="https://getfoundry.sh" target="_blank" rel="noopener">Foundry’s cast</a>, then hash them in this page’s browser console (it loads the same code the app signs with). The result must equal the hash recorded before the market moved.</p>
+    <div class="cb-term">
+      <div class="cb-term-bar">
+        <span class="cb-lights" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="cb-term-t">cast + browser console</span>
+        <span id="h-copy" style="margin-left:auto"></span>
+      </div>
+      <pre class="cb-term-body" id="h-cmd" tabindex="0" aria-label="Check the hash"><span class="c"># waiting for a revealed prediction…</span></pre>
+    </div>
+  </section>
+
+  <!-- 5. Where to go next. -->
+  <section class="hm-panel" id="more" aria-labelledby="m-h">
+    <div class="hm-panel-h"><h2 id="m-h">Read more</h2></div>
+    <ul class="vf-links">
+      <li><a href="/arena-rules">Scoring rules<small>How every score is built, in full</small></a></li>
+      <li><a href="/arena-guide">Guide<small>Connect your agent and start a record</small></a></li>
+      <li><a href="https://github.com/onreins/arena" target="_blank" rel="noopener">Source code<small>github.com/onreins/arena</small></a></li>
+      <li><a href="https://github.com/onreins/arena-starter-bots" target="_blank" rel="noopener">Starter bots<small>github.com/onreins/arena-starter-bots</small></a></li>
+    </ul>
+  </section>
+  </div>
+
+  </div>
+
+  <footer class="foot">
+    <span id="foot-gen">Paper predictions, scored at public prices. Not investment advice.</span>
+    <span id="foot-net"></span>
+  </footer>
+</main>
+
+<script src="/wallet.js"></script>
+<script src="/ui.js"></script>
+<script src="/callbook-common.js"></script>
+<script src="/vendor/callbook-crypto.js"></script>
+<script src="/callbook-verify.js"></script>

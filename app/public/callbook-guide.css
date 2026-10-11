@@ -1,0 +1,220 @@
+/* The guide, in Kraken Pro's style and kept short: a banner with Arena's coins
+   (app/art-src/arena-coins.html), medallion cards, three steps, the score check, three questions. */
+.gd {
+  --gd-panel: #15131e; --gd-panel-2: #1c1928; --gd-edge: rgba(255, 255, 255, .045);
+  --gd-violet: #8b6cff; --gd-violet-bg: rgba(139, 108, 255, .13); --gd-hl: #3ddc97;
+}
+.gd-panel { background: var(--gd-panel); border-radius: 16px; box-shadow: inset 0 0 0 1px var(--gd-edge); }
+.gd section.gd-panel { margin-top: 0; }
+.gd section.gd-banner { margin-top: 20px; }
+
+/* The banner. */
+.gd-banner { position: relative; overflow: hidden; margin-top: 24px; padding: 40px 40px 36px; border-radius: 18px; min-height: 300px;
+  background: radial-gradient(60% 90% at 82% 45%, rgba(139, 108, 255, .22), transparent 70%), linear-gradient(100deg, #13111b 0%, #171428 60%, #1b1631 100%);
+  box-shadow: inset 0 0 0 1px var(--gd-edge); }
+.gd-banner-l { position: relative; z-index: 1; max-width: 540px; }
+.gd-banner h1 { color: var(--ink); font: 600 34px/1.15 var(--sans); letter-spacing: -.02em; text-wrap: balance; }
+.gd-banner h1 em { font-style: normal; color: var(--gd-hl); }
+.gd-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; color: var(--ink-2); font-size: 14px; }
+.gd-meta span::before { content: "✓"; margin-right: 6px; color: var(--gd-hl); }
+.gd-action { display: flex; align-items: center; gap: 14px; margin-top: 24px; padding: 14px 16px; border-radius: 12px; background: var(--gd-violet-bg); box-shadow: inset 0 0 0 1px rgba(139, 108, 255, .22); }
+.gd-action code { flex: 1; min-width: 0; color: var(--ink); font: 13px var(--mono); white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+.gd-action code::-webkit-scrollbar { display: none; }
+.gd-art { position: absolute; z-index: 0; right: 8px; top: 50%; width: 470px; max-width: 50%; height: auto; transform: translateY(-50%); pointer-events: none; user-select: none; }
+
+/* The banner in motion (arena-guide.html): a drifting glow and a dot grid behind, the headline rising in
+   word by word (callbook-guide.js splits it), a shimmer on the promise, the checks popping in, the command
+   typing itself out inside a running border, and the live coins (arena-hero.js). All still with reduced motion. */
+@property --gd-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.gd-banner { isolation: isolate; }
+.gd-banner::before { content: ""; position: absolute; z-index: -1; inset: -40%; pointer-events: none;
+  background: radial-gradient(28% 32% at 70% 40%, rgba(139, 108, 255, .28), transparent 70%), radial-gradient(22% 26% at 30% 75%, rgba(61, 220, 151, .1), transparent 70%), radial-gradient(26% 30% at 88% 80%, rgba(111, 92, 255, .2), transparent 70%);
+  filter: blur(10px); animation: gd-drift 16s ease-in-out infinite alternate; }
+.gd-banner::after { content: ""; position: absolute; z-index: -1; inset: 0; pointer-events: none;
+  background: radial-gradient(rgba(255, 255, 255, .07) 1px, transparent 1.3px) 0 0 / 22px 22px;
+  -webkit-mask: radial-gradient(70% 90% at 75% 50%, #000, transparent 75%); mask: radial-gradient(70% 90% at 75% 50%, #000, transparent 75%); }
+@keyframes gd-drift { 0% { transform: translate3d(-4%, -2%, 0) rotate(0deg); } 100% { transform: translate3d(5%, 3%, 0) rotate(8deg); } }
+/* The live coins take the PNG's place in the same pose, so the swap needs no fade. */
+.gd-live { pointer-events: auto; }
+
+.gd-banner h1 .w { display: inline-block; animation: gd-rise .8s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i) * 60ms + 80ms); }
+.gd-banner h1 em.w { background: linear-gradient(100deg, #3ddc97 0%, #3ddc97 35%, #b9ffe0 50%, #3ddc97 65%, #3ddc97 100%) 0 0 / 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: gd-rise .8s cubic-bezier(.2, .8, .2, 1) both, gd-shine 4.5s ease-in-out infinite; animation-delay: calc(var(--i) * 60ms + 80ms), 1.4s; }
+@keyframes gd-rise { from { opacity: 0; transform: translateY(.45em); filter: blur(6px); } }
+@keyframes gd-shine { 0% { background-position: 100% 0; } 60%, 100% { background-position: -50% 0; } }
+.gd-meta span { animation: gd-pop .5s cubic-bezier(.3, 1.5, .5, 1) both; }
+.gd-meta span:nth-child(1) { animation-delay: .55s; }
+.gd-meta span:nth-child(2) { animation-delay: .65s; }
+.gd-meta span:nth-child(3) { animation-delay: .75s; }
+@keyframes gd-pop { from { opacity: 0; transform: scale(.85) translateY(4px); } }
+
+.gd-action { position: relative; animation: gd-rise .8s cubic-bezier(.2, .8, .2, 1) .7s both; }
+.gd-action::before { content: ""; position: absolute; inset: 0; padding: 1px; border-radius: inherit; pointer-events: none;
+  background: conic-gradient(from var(--gd-a), transparent 0 62%, rgba(139, 108, 255, .9) 78%, #3ddc97 88%, transparent 96%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: gd-orbit 5s linear infinite; }
+@keyframes gd-orbit { to { --gd-a: 360deg; } }
+.gd-type { display: inline-block; overflow: hidden; vertical-align: bottom; white-space: nowrap; width: calc(var(--n, 43) * 1ch);
+  animation: gd-typing 1.3s steps(43) 1.1s both; }
+.gd-action code::after { content: ""; display: inline-block; width: 8px; height: 1.15em; margin-left: 2px; vertical-align: -3px; background: #b3a2ff; border-radius: 1px; animation: gd-blink 1s steps(1) infinite; }
+@keyframes gd-typing { from { width: 0; } }
+@keyframes gd-blink { 50% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .gd-banner::before, .gd-banner h1 .w, .gd-banner h1 em.w, .gd-meta span, .gd-action, .gd-action::before, .gd-type, .gd-action code::after { animation: none; }
+}
+
+/* Section titles, icons, medallions. */
+.gd-h { margin: 44px 0 14px; color: var(--ink); font: 600 20px/1.3 var(--sans); letter-spacing: -.01em; }
+.gd-ic { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--gd-violet-bg); color: #d9d3ff; flex: none; }
+.gd-ic .ic { width: 18px; height: 18px; }
+.gd-medal { position: relative; width: 92px; height: 92px; color: #cfc6ff; }
+.gd-medal svg.rings { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gd-medal .ic { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%, -50%); }
+
+/* How it works: medallion cards, a title and a few words each. */
+.gd-tiers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.gd-tiers li { display: flex; flex-direction: column; align-items: center; padding: 26px 16px 24px; text-align: center; }
+.gd-tiers b { margin-top: 16px; color: var(--ink); font: 600 15px/1.35 var(--sans); }
+.gd-tiers span:not(.gd-medal) { margin-top: 3px; color: var(--ink-3); font-size: 13.5px; }
+
+/* Get started: three steps, the setup, two buttons. */
+.gd-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.gd-steps li { display: flex; align-items: center; gap: 14px; padding: 18px 20px; }
+.gd-steps b { color: var(--ink); font: 500 14.5px/1.4 var(--sans); }
+.gd-steps a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-4); text-underline-offset: 3px; }
+.gd-setup { margin-top: 12px; padding: 16px; }
+.gd-setup .cb-term, .gd-check .cb-term { margin: 0; }
+.gd-cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 18px; }
+.gd-btn { display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: 10px; background: var(--gd-panel-2); color: var(--ink); font: 500 14px var(--sans); text-decoration: none; box-shadow: inset 0 0 0 1px var(--gd-edge); }
+.gd-btn:hover { background: #24203a; }
+.gd-btn.main { background: var(--gd-violet); color: #fff; box-shadow: none; }
+.gd-btn.main:hover { background: #9a7fff; }
+
+.gd-check { padding: 16px; }
+.gd-check .cb-v-lede { margin-top: 12px; }
+
+.gd-faq { padding: 6px 22px; }
+.gd-faq details { border-bottom: 1px solid var(--gd-edge); }
+.gd-faq summary { display: flex; justify-content: space-between; align-items: center; gap: 16px; min-height: 54px; color: var(--ink); font: 500 14.5px var(--sans); cursor: pointer; list-style: none; }
+.gd-faq summary::-webkit-details-marker { display: none; }
+.gd-faq summary::after { content: ""; flex: none; width: 8px; height: 8px; margin-right: 4px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(45deg) translateY(-3px); transition: transform .2s ease; }
+.gd-faq details[open] summary::after { transform: rotate(225deg) translateY(-1px); }
+.gd-faq details p { padding: 0 0 16px; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
+.gd-all { display: block; padding: 14px 0 12px; color: var(--ink-2); font-size: 14px; }
+.gd-all:hover { color: var(--ink); }
+
+@media (max-width: 1100px) { .gd-art { max-width: 46%; right: -10px; opacity: .9; } }
+@media (max-width: 980px) {
+  .gd-tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gd-steps { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .gd-banner { padding: 26px 20px 22px; min-height: 0; }
+  .gd-banner h1 { font-size: 27px; }
+  .gd-art { position: relative; display: block; right: auto; top: auto; width: 100%; max-width: 380px; margin: -6px auto -18px; transform: none; opacity: 1; }
+  .gd-tiers li { padding: 20px 10px; }
+  .gd-medal { width: 76px; height: 76px; }
+  .gd-setup, .gd-check { padding: 12px; }
+}
+
+/* The docs overview (arena-docs.html): one card per page, the whole card a link. */
+.gd-docs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 24px 0 0; padding: 0; list-style: none; }
+.gd-doc { display: flex; flex-direction: column; align-items: center; height: 100%; padding: 28px 16px 24px; text-align: center; color: inherit; text-decoration: none; transition: background .2s ease, transform .2s ease; }
+.gd-doc:hover { background: var(--gd-panel-2); transform: translateY(-2px); }
+.gd-doc b { margin-top: 16px; color: var(--ink); font: 600 15px/1.35 var(--sans); }
+.gd-doc span:not(.gd-medal):not(.gd-soon) { margin-top: 3px; color: var(--ink-3); font-size: 13.5px; }
+.gd-soon { margin-top: 10px; padding: 3px 9px; border-radius: 99px; background: var(--gd-violet-bg); color: #d9d3ff; font: 500 11.5px var(--sans); }
+.gd-banner.small { min-height: 0; padding: 34px 40px; }
+.gd-banner.small .gd-art { width: 340px; }
+@media (max-width: 980px) { .gd-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .gd-banner.small { padding: 26px 20px 20px; } .gd-banner.small .gd-art { max-width: 300px; } }
+
+/* The rules page (arena-rules.html): a worked example as a sum, like Turo's earnings; what
+   counts as ticks and crosses, like Wise; the score in three blocks with the levels as a ladder,
+   like Fiverr; then every detailed rule folded below. */
+.rl-eg { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 28px; align-items: center; padding: 24px; }
+.rl-eg-h { display: flex; align-items: center; gap: 14px; }
+.rl-eg-h b { display: block; color: var(--ink); font: 600 17px var(--sans); }
+.rl-eg-h span:not(.gd-ic) { display: block; margin-top: 2px; color: var(--ink-3); font-size: 13px; }
+.rl-eg .rl-fine { grid-column: 1; margin-top: -10px; color: var(--ink-3); font-size: 13px; line-height: 1.55; }
+.rl-sum { grid-column: 2; grid-row: 1 / span 2; width: 100%; border-collapse: collapse; font-size: 14px; }
+.rl-sum td { padding: 10px 2px; border-bottom: 1px solid var(--gd-edge); color: var(--ink-2); }
+.rl-sum td:last-child { text-align: right; color: var(--ink); font: 500 14px var(--mono); }
+.rl-sum .up { color: var(--gd-hl) !important; }
+.rl-sum .dn { color: #f07a8a !important; }
+.rl-sum tr.tot td { border-bottom: 0; padding-top: 14px; color: var(--ink); font-weight: 600; font-size: 15px; }
+.rl-sum tr.tot td:last-child { font-size: 16px; }
+
+.rl-counts { padding: 8px 22px; }
+.rl-counts ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 32px; margin: 0; padding: 0; list-style: none; }
+.rl-counts li { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--gd-edge); color: var(--ink); font-size: 14px; }
+.rl-counts li::before { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 600 12px var(--sans); }
+.rl-counts li.ok::before { content: "✓"; background: rgba(61, 220, 151, .14); color: var(--gd-hl); }
+.rl-counts li.no::before { content: "✕"; background: rgba(240, 122, 138, .14); color: #f07a8a; }
+
+.rl-score { display: grid; gap: 12px; }
+.gd section.rl-score { margin-top: 0; }
+.rl-parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+.rl-parts li { display: flex; flex-direction: column; gap: 4px; padding: 20px; }
+.rl-pct { color: #cfc6ff; font: 600 26px/1.1 var(--sans); letter-spacing: -.02em; }
+.rl-parts b { margin-top: 8px; color: var(--ink); font: 600 15px var(--sans); }
+.rl-parts span:not(.rl-pct) { color: var(--ink-3); font-size: 13.5px; }
+
+.rl-ladder { padding: 20px 22px 22px; }
+.rl-ladder-h { color: var(--ink-2); font-size: 14px; }
+.rl-ladder ol { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; margin: 18px 0 0; padding: 0; list-style: none; }
+.rl-ladder ol::before { content: ""; position: absolute; left: 7px; right: 7px; top: 7px; height: 2px; background: linear-gradient(90deg, rgba(139, 108, 255, .25), var(--gd-violet)); }
+.rl-ladder li { position: relative; padding-top: 26px; }
+.rl-ladder li::before { content: ""; position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; background: var(--gd-panel); box-shadow: inset 0 0 0 2px var(--gd-violet); }
+.rl-ladder li:last-child::before { background: var(--gd-violet); }
+.rl-ladder b { display: block; color: var(--ink); font: 600 14.5px var(--sans); }
+.rl-ladder span { display: block; margin-top: 2px; color: var(--ink-3); font-size: 13px; }
+
+.rl-full-note { margin: -6px 0 12px; color: var(--ink-3); font-size: 13.5px; }
+.rl-full { margin-top: 8px; border-radius: 14px; background: var(--gd-panel); box-shadow: inset 0 0 0 1px var(--gd-edge); }
+.rl-full > summary { display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 0 20px; color: var(--ink); font: 500 15px var(--sans); cursor: pointer; list-style: none; }
+.rl-full > summary::-webkit-details-marker { display: none; }
+.rl-full > summary > span:first-child { flex: 1; }
+.rl-full > summary .rl-src { color: var(--ink-4); font: 12px var(--mono); }
+.rl-full > summary::after { content: ""; flex: none; width: 8px; height: 8px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: rotate(45deg) translateY(-3px); transition: transform .2s ease; }
+.rl-full[open] > summary::after { transform: rotate(225deg) translateY(-1px); }
+.rl-full-b { padding: 0 20px 20px; }
+
+@media (max-width: 860px) {
+  .rl-eg { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .rl-eg .rl-fine { margin-top: 0; grid-row: 3; }
+  .rl-sum { grid-column: 1; grid-row: 2; }
+  .rl-counts ul { grid-template-columns: minmax(0, 1fr); }
+  .rl-full > summary .rl-src { display: none; }
+}
+@media (max-width: 560px) {
+  .rl-ladder ol { grid-auto-flow: row; grid-auto-columns: auto; gap: 14px; }
+  .rl-ladder ol::before { left: 7px; right: auto; top: 8px; bottom: 8px; width: 2px; height: auto; background: linear-gradient(180deg, rgba(139, 108, 255, .25), var(--gd-violet)); }
+  .rl-ladder li { padding: 0 0 0 28px; }
+  .rl-parts { grid-template-columns: minmax(0, 1fr); }
+  .rl-parts li { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
+  .rl-parts b { margin-top: 0; }
+  .rl-parts span:not(.rl-pct) { flex-basis: 100%; }
+}
+
+/* The guide's "Get started": one checklist, each step with its own action (Portrait's pattern):
+   a numbered circle, joined to the next by a line; the title and a short line; the action right. */
+.gd-how { margin: 0; padding: 6px 22px; list-style: none; }
+.gd-how > li { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 4px 16px; padding: 18px 0; }
+.gd-how > li + li { border-top: 1px solid var(--gd-edge); }
+.gd-how > li:not(:last-child)::after { content: ""; position: absolute; left: 17px; top: 56px; bottom: -18px; width: 2px; background: rgba(139, 108, 255, .22); }
+.gd-n { position: relative; z-index: 1; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #2a2344; color: #e3ddff; font: 600 14px var(--sans); align-self: start; }
+.gd-how-b b { display: block; color: var(--ink); font: 600 15px var(--sans); }
+.gd-how-b span { display: block; margin-top: 2px; color: var(--ink-3); font-size: 13.5px; }
+.gd-how-wide { grid-column: 2 / -1; margin-top: 10px; }
+.gd-how-wide .cb-term { margin: 0; }
+.gd-prompt { display: inline-block; margin-top: 6px; padding: 6px 10px; border-radius: 8px; background: #0d0c13; color: var(--ink); font: 13px var(--mono); box-shadow: inset 0 0 0 1px var(--gd-edge); }
+@media (max-width: 640px) {
+  .gd-how { padding: 4px 14px; }
+  .gd-how > li { grid-template-columns: 36px minmax(0, 1fr); }
+  .gd-how > li > .gd-btn, .gd-how > li > #gd-prompt-copy { grid-column: 2; justify-self: start; margin-top: 8px; }
+  .gd-how-wide { grid-column: 1 / -1; }
+}

@@ -1,0 +1,105 @@
+{
+  "network": "mainnet",
+  "chainId": 5042,
+  "callbook": "0xBb3a454E3C15C548791170F769A4F9A0C2813368",
+  "identityRegistry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+  "validationRegistry": "0x8004Cc8439f36fd5F9F049D9fF86523Df6dAAB58",
+  "owner": "0x431d1E447ab11Dee37E7beea96153B6Ba1da49c6",
+  "caller": "0x8760Ec009706181830C87597BcB7cc4778F4c603",
+  "validator": "0x50262efcFae9E7E86b281f91a234aab3b19739E5",
+  "agentUriBase": "https://app.reins.one/arena/agents/",
+  "agents": [
+    {
+      "key": "hot",
+      "slug": "hot-list",
+      "name": "Hot list",
+      "strategy": "reins/arena/hot-list/v1",
+      "strategyHash": "0xa795f93c067f2414fb6c856fee29a81d2d9cb4544300566594fde4fdf9f20b86",
+      "agentId": 2364,
+      "agentURI": "https://app.reins.one/arena/agents/hot-list.json",
+      "bookId": 1,
+      "coins": [
+        "BTC",
+        "ETH",
+        "SOL",
+        "HYPE",
+        "XRP",
+        "DOGE",
+        "SUI",
+        "BNB",
+        "LINK",
+        "AVAX",
+        "AAVE",
+        "ENA"
+      ],
+      "periodSec": 14400,
+      "horizonSec": 14400,
+      "requestHash": "0x69d18079ad484c026bb806b0daff10412459fbc6d8cb35c3250ff525a18f3ccc",
+      "requestURI": "data:application/json;base64,eyJhZ2VudElkIjoiMjM2NCIsImJvb2tJZCI6IjEiLCJjYWxsYm9vayI6IjB4YmIzYTQ1NGUzYzE1YzU0ODc5MTE3MGY3NjlhNGY5YTBjMjgxMzM2OCIsImNoYWluSWQiOjUwNDIsInNjb3JpbmciOiJhcmVuYS12MSJ9",
+      "descriptor": "{\"agentId\":\"2364\",\"bookId\":\"1\",\"callbook\":\"0xbb3a454e3c15c548791170f769a4f9a0c2813368\",\"chainId\":5042,\"scoring\":\"arena-v1\"}",
+      "txs": {
+        "register": "0x723009885f5be7c309487661e561a57336fe1e25218656e1ec1be82dec989ed6",
+        "open": "0x484eafe514628708e46b6239003185654028832670e3bd46df8bbf2736913610",
+        "request": "0x6bca3cdd2baee1c2fe55cfb6e5e307e0322b2cf781ccdd20c8d0fa7e424dc0b6"
+      }
+    },
+    {
+      "key": "cold",
+      "slug": "cold-list",
+      "name": "Cold list",
+      "strategy": "reins/arena/cold-list/v1",
+      "strategyHash": "0xa252be1f475f147ba5e27cb2205da51940e471f4f700c59bd43627d8be5e67ed",
+      "agentId": 2365,
+      "agentURI": "https://app.reins.one/arena/agents/cold-list.json",
+      "bookId": 2,
+      "coins": [
+        "BTC",
+        "ETH",
+        "SOL",
+        "HYPE",
+        "XRP",
+        "DOGE",
+        "SUI",
+        "BNB",
+        "LINK",
+        "AVAX",
+        "AAVE",
+        "ENA"
+      ],
+      "periodSec": 14400,
+      "horizonSec": 14400,
+      "requestHash": "0xec6358c7a8837a003e3ce8d3182679b29046fbb15fd1e7cfee03e0c564d321df",
+      "requestURI": "data:application/json;base64,eyJhZ2VudElkIjoiMjM2NSIsImJvb2tJZCI6IjIiLCJjYWxsYm9vayI6IjB4YmIzYTQ1NGUzYzE1YzU0ODc5MTE3MGY3NjlhNGY5YTBjMjgxMzM2OCIsImNoYWluSWQiOjUwNDIsInNjb3JpbmciOiJhcmVuYS12MSJ9",
+      "descriptor": "{\"agentId\":\"2365\",\"bookId\":\"2\",\"callbook\":\"0xbb3a454e3c15c548791170f769a4f9a0c2813368\",\"chainId\":5042,\"scoring\":\"arena-v1\"}",
+      "txs": {
+        "register": "0x74dcdea417115d051d60bef38cb015ec4fabbf7f90639fc64e95a6f6be3ffcde",
+        "open": "0xb2e56b7207c235f7d0b35bf0b8d4a3c79872d6824e834a23410c33055b0e6a94",
+        "request": "0x0f7cfc096cad5dad553e9ac84de79dffa3f17e8fdf4da0e5893270331335882c"
+      }
+    },
+    {
+      "key": "flip",
+      "slug": "coin-flip",
+      "name": "Coin flip",
+      "strategy": "reins/arena/coin-flip/v1",
+      "strategyHash": "0x1f81c6280f8c588de66fa08c63c62b8a4aa0dc0ad68991c694f2af9d66352366",
+      "agentId": 2366,
+      "agentURI": "https://app.reins.one/arena/agents/coin-flip.json",
+      "bookId": 3,
+      "coins": [
+        "BTC"
+      ],
+      "periodSec": 14400,
+      "horizonSec": 14400,
+      "requestHash": "0x385a8ec55c872c94e2c7e4b33255a4edfe8523ebc37f8aef7f2ad969e733d875",
+      "requestURI": "data:application/json;base64,eyJhZ2VudElkIjoiMjM2NiIsImJvb2tJZCI6IjMiLCJjYWxsYm9vayI6IjB4YmIzYTQ1NGUzYzE1YzU0ODc5MTE3MGY3NjlhNGY5YTBjMjgxMzM2OCIsImNoYWluSWQiOjUwNDIsInNjb3JpbmciOiJhcmVuYS12MSJ9",
+      "descriptor": "{\"agentId\":\"2366\",\"bookId\":\"3\",\"callbook\":\"0xbb3a454e3c15c548791170f769a4f9a0c2813368\",\"chainId\":5042,\"scoring\":\"arena-v1\"}",
+      "txs": {
+        "register": "0xfe774988e3ad966e609ce3d53b3fa95101b4dea73e513c359087a6ad91a2ead8",
+        "open": "0x0f38e949ca2d279b2292d06247b3fca9f52c207fa4d39133aa8bae7e695de8f8",
+        "request": "0xd8ec2b4218be5447313c4ea4742f0414eddd5dd383a251b71bcd2ce8169c4afc"
+      }
+    }
+  ],
+  "updatedAt": "2026-10-11T15:15:16.801Z"
+}

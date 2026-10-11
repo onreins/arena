@@ -35,6 +35,8 @@ const MESSAGES = Object.freeze({
   UnlinkAgent: [["agent", "address", ADDRESS], ["nonce", "uint256", UINT], ["deadline", "uint256", UINT]],
   SetProfile: [["account", "address", ADDRESS], ["bookId", "uint256", UINT], ["name", "string", TEXT(32)], ["bio", "string", TEXT(160)],
     ["link", "string", TEXT(100)], ["nonce", "uint256", UINT], ["deadline", "uint256", UINT]],
+  // Off-chain: the marketplace waitlist's sign-in (app/arena-waitlist-routes.js); no contract function takes it.
+  JoinWaitlist: [["account", "address", ADDRESS], ["deadline", "uint256", UINT]],
 });
 export const SIGNABLE = Object.freeze(Object.keys(MESSAGES));
 const DOMAIN_TYPE = [

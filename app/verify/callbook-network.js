@@ -83,6 +83,9 @@ export function callbookNetwork(rawEnv = process.env, over = {}) {
   const saved = readJson(path.join(ROOT, "deployments", `callbook-${name}.json`)) ?? globalThis.__CALLBOOK_DEPLOYMENTS__?.[name] ?? null;
   const address = over.address ?? env.CALLBOOK_ADDRESS ?? saved?.contracts?.callbook;
   if (!address || !isAddress(address)) throw new Error(`no Arena address for ${name}: set ARENA_ADDRESS`);
+  // The record's deploy block belongs to its own contract: another address doesn't get it.
+  // (Its validator is Reins's key for the whole network, so that one still applies.)
+  const deployed = saved && String(saved.contracts?.callbook ?? "").toLowerCase() === address.toLowerCase() ? saved : null;
 
   let chain, registry, explorer, label;
   const rpcEnv = over.rpc ?? env.CALLBOOK_RPC;
@@ -97,7 +100,7 @@ export function callbookNetwork(rawEnv = process.env, over = {}) {
     throw new Error("ARENA_NETWORK must be local, testnet or mainnet");
   }
   const local = name === "local";
-  const fromBlock = BigInt(over.fromBlock ?? env.CALLBOOK_FROM_BLOCK ?? saved?.fromBlock ?? 0);
+  const fromBlock = BigInt(over.fromBlock ?? env.CALLBOOK_FROM_BLOCK ?? deployed?.fromBlock ?? 0);
   if (!local && fromBlock <= 0n) throw new Error(`set ARENA_FROM_BLOCK (the Arena deploy block) for ${name}; a scan from genesis is refused`);
 
   registry = over.registry ?? env.CALLBOOK_VALIDATION_REGISTRY ?? registry;

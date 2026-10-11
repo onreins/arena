@@ -97,6 +97,8 @@ window.ReinsUI = (function () {
   PATHS.drop = '<path d="M12 3.5s5.5 6.1 5.5 10.2a5.5 5.5 0 0 1-11 0C6.5 9.6 12 3.5 12 3.5Z"/>';
   PATHS.code ='<path d="M8.5 7.5 4 12l4.5 4.5M15.5 7.5 20 12l-4.5 4.5M13.5 5.5l-3 13"/>';
   PATHS.copy ='<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/>';
+  PATHS.help = '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.7M12 17h.01"/>';
+  PATHS.podium = '<path d="M3.5 20h17"/><rect x="9.5" y="6.5" width="5" height="13.5" rx=".8"/><rect x="4" y="12" width="5" height="8" rx=".8"/><rect x="15" y="9.5" width="5" height="10.5" rx=".8"/>';
   var ALIAS = { external: "ext", chev: "right", sort: "updown", trend: "strategies", gauge: "shield", coins: "wallet", x: "close", user: "agent", logout: "exit" };
   function icon(name, size) {
     return '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"' + (size ? ' style="width:' + size + "px;height:" + size + 'px"' : "") + ">" +
@@ -162,15 +164,23 @@ window.ReinsUI = (function () {
     [null, [["explore", "Agents", "/"], ["strategies", "Strategies", "/strategies"], ["callbook", "Arena", "/arena"], ["chat", "Chat", "/chat"], ["charts", "Charts", "/charts"], ["create", "Create agent", "/create"]]],
     ["ARC", [["window", "Block explorer", "#", "nav-explorer"]]],
   ];
+  // Arena's docs, listed under Arena in the phone menu (on a wide screen, the Arena tab bar has them).
+  // [icon, label, href, caption]
+  var ARENA_DOCS = [
+    ["info", "Guide", "/arena-guide", "Connect your agent in one line"],
+    ["help", "Docs", "/arena-docs", "Rules, verify, build, FAQ"],
+  ];
+  var herePath = function () { return location.pathname.toLowerCase().replace(/\.html$/, "").replace(/\/$/, "") || "/"; };
   // On a phone the sidebar is hidden, so the main pages move to a bar along the bottom.
   var TABS = [["explore", "Agents", "/"], ["strategies", "Strategies", "/strategies"], ["callbook", "Arena", "/arena"], ["charts", "Charts", "/charts"], ["chat", "Chat", "/chat"], ["create", "Create", "/create"]];
   function topbar(page) {
-    var nav = NAV.map(function (g) {
+    var groups = NAV.map(function (g) {
       return (g[0] ? '<div class="grp">' + g[0] + "</div>" : "") + g[1].map(function (it) {
         return '<a class="item" href="' + it[2] + '"' + (it[3] ? ' id="' + it[3] + '" target="_blank" rel="noopener"' : "") +
           (it[0] === page ? ' aria-current="page"' : "") + ">" + icon(it[0]) + it[1] + (it[3] ? icon("ext").replace('class="ic"', 'class="ic ext"') : "") + "</a>";
       }).join("");
-    }).join("");
+    });
+    var nav = groups.join("");
     var hidden = false;
     try { hidden = localStorage.getItem("reins-promo") === "hidden"; } catch (e) { /* storage off */ }
     var rings = '<svg class="rings" viewBox="0 0 220 220" aria-hidden="true">' + [30, 55, 80, 105].map(function (r) {
@@ -180,6 +190,7 @@ window.ReinsUI = (function () {
     $("side").innerHTML =
       '<div class="side-head"><a class="brand" href="/">' + MARK + 'Reins <span class="tag">BETA</span></a></div>' +
       '<nav aria-label="Main">' + nav + "</nav>" +
+      '<p class="side-legal"><a href="/terms">Terms</a><span aria-hidden="true">·</span><a href="/privacy">Privacy</a></p>' +
       (hidden ? "" : '<div class="promo" id="promo">' + rings + '<span class="badge"><img src="/tokens/arc.svg" alt=""></span>' +
         '<button class="x" id="promo-x" type="button" aria-label="Hide">' + icon("minus") + "</button><b>Tokenized stocks</b><span>Coming to Arc</span></div>");
     $("top").className = "top";
@@ -223,6 +234,7 @@ window.ReinsUI = (function () {
       return A.restore();
     }).then(function (s) { if (s) listeners.forEach(function (fn) { fn(s.address); }); }).catch(function () { /* sign-in unavailable */ });
     W.config().then(function (c) {
+      if (netFixed) return;
       $("nav-explorer").href = c.explorer;
       setNet(true, "Arc " + c.network);
     }).catch(function () { setNet(false, "Offline"); });
@@ -237,57 +249,40 @@ window.ReinsUI = (function () {
     menu.setAttribute("aria-label", "Menu");
     menu.hidden = true;
     // A sub-page (the guide, your profile) is marked current over its section.
-    var path = location.pathname.toLowerCase(), onSub = false;
-    var current = function (it) { return it[3] === "sub" ? path === it[2].toLowerCase() : !onSub && it[0] === page; };
-    // The main pages as tiles, each with its own colour and a few words on what's there.
-    var TILE = {
-      explore: ["blue", "Live on Arc"], strategies: ["violet", "Backtested ideas"], callbook: ["green", "Track records"],
-      chat: ["amber", "Describe a strategy"], charts: ["orange", "Live markets"], create: ["pink", "Fund it, set limits"],
+    var path = herePath(), onSub = false;
+    // The docs pages (rules, verify, build, FAQ) count as Docs.
+    var inDocs = /^\/arena-(rules|verify|build|faq)$/.test(path);
+    var here = function (href) { href = href.toLowerCase(); return path === href || (inDocs && href === "/arena-docs"); };
+    var current = function (it) { return it[3] === "sub" ? here(it[2]) : !onSub && it[0] === page; };
+    // Aave's phone menu: a plain list of words, no icons. The current page has a violet bar at its
+    // left; dividers between the main pages, Arena's pages and the links out; two outlined
+    // buttons at the foot. Items: [icon, label, href, "sub", external?]
+    var item = function (it, value) {
+      return '<a class="m-it" href="' + it[2] + '"' + (current(it) ? ' aria-current="page"' : "") + (it[4] ? ' target="_blank" rel="noopener"' : "") + ">" +
+        "<span>" + it[1] + "</span>" + (value ? '<span class="m-val">' + value + "</span>" : it[4] ? icon("ext").replace('class="ic"', 'class="ic m-go"') : "") + "</a>";
     };
-    var tile = function (it) {
-      var t = TILE[it[0]] || ["blue", ""];
-      return '<a class="tile t-' + t[0] + '" href="' + it[2] + '"' + (current(it) ? ' aria-current="page"' : "") + ">" +
-        '<span class="t-ic">' + icon(it[0]) + "</span><b>" + it[1] + "</b><small>" + t[1] + "</small></a>";
-    };
-    // Rows: [icon, label, href, "sub", external?, caption?]
-    var row = function (it) {
-      return '<a class="row" href="' + it[2] + '"' + (current(it) ? ' aria-current="page"' : "") + (it[4] ? ' target="_blank" rel="noopener"' : "") + ">" +
-        '<span class="r-ic">' + icon(it[0]) + '</span><span class="r-txt"><b>' + it[1] + "</b>" + (it[5] ? "<small>" + it[5] + "</small>" : "") + "</span>" +
-        icon(it[4] ? "ext" : "right").replace('class="ic"', 'class="ic r-go"') + "</a>";
-    };
-    var group = function (title, rows) {
-      return rows.length ? '<div class="grp">' + title + '</div><div class="card">' + rows.map(row).join("") + "</div>" : "";
-    };
-    // Who's here: your profile when signed in, the way in when not.
-    var account = function (s) {
-      if (!s) {
-        return '<div class="acct out"><div class="a-txt"><b>Sign in to Reins</b><small>A browser wallet or Google. Then see your record and link your agent.</small></div>' +
-          '<button type="button" class="btn-white" data-act="signin">Sign in</button></div>';
-      }
-      var href = "/arena/p/" + s.address.toLowerCase();
-      return '<a class="acct" href="' + href + '"' + (path === href ? ' aria-current="page"' : "") + ">" + identicon(s.address, 40) +
-        '<span class="a-txt"><b>Your account</b><small><span class="mono">' + esc(short(s.address)) + "</span>" + (s.label ? " · " + esc(s.label) : "") + "</small></span>" +
-        '<span class="a-go">Profile' + icon("right") + "</span></a>";
-    };
+    var list = function (items, cls) { return items.length ? '<div class="m-list' + (cls ? " " + cls : "") + '">' + items.join("") + "</div>" : ""; };
     var draw = function () {
       var s = savedSession();
-      var arena = [["info", "How Arena works", "/arena-guide", "sub", false, "Build a record anyone can check"]];
-      onSub = arena.some(function (it) { return path === it[2].toLowerCase(); }) || (!!s && path === "/arena/p/" + s.address.toLowerCase());
-      var arc = [];
-      if ($("nav-explorer")) arc.push(["window", "Block explorer", $("nav-explorer").href, "sub", true]);
+      var arena = [["podium", "Leaderboard", "/arena-leaderboard", "sub"], ["agent", "Marketplace", "/arena-marketplace", "sub"]]
+        .concat(ARENA_DOCS.map(function (d) { return [d[0], d[1], d[2], "sub"]; }));
+      var profile = s ? "/arena/p/" + s.address.toLowerCase() : null;
+      onSub = arena.some(function (it) { return here(it[2]); }) || (!!s && path === profile);
+      var links = [];
+      if ($("nav-explorer")) links.push(["window", "Block explorer", $("nav-explorer").href, "sub", true]);
       var testnet = /testnet/i.test(($("net-text") || {}).textContent || "");
-      if (testnet) arc.push(["drop", "Testnet USDC faucet", "https://faucet.circle.com", "sub", true]);
+      if (testnet) links.push(["drop", "Testnet USDC faucet", "https://faucet.circle.com", "sub", true]);
       menu.innerHTML =
-        account(s) +
-        '<div class="tiles">' + NAV[0][1].map(tile).join("") + "</div>" +
-        group("Arena", arena) +
-        group("Build", [
-          ["terminal", "Arena for your agent", "https://www.npmjs.com/package/@onreins/mcp", "sub", true, "MCP for Claude, Cursor and others"],
-          ["code", "Source code", "https://github.com/onreins/arena", "sub", true, "Open source on GitHub"],
-        ]) +
-        group("Arc", arc) +
+        list(NAV[0][1].map(function (it) { return item(it); })) +
+        list(arena.map(function (it) { return item(it); }), "m-sec") +
+        (s ? list([item(["agent", "Your account", profile, "sub"], '<span class="mono">' + esc(short(s.address)) + "</span>")], "m-sec") : "") +
+        list(links.map(function (it) { return item(it); }), "m-sec") +
+        '<div class="m-btns">' +
+          '<a class="m-btn" href="https://www.npmjs.com/package/@onreins/mcp" target="_blank" rel="noopener">' + icon("terminal") + "Arena for your agent</a>" +
+          '<a class="m-btn" href="https://github.com/onreins/arena" target="_blank" rel="noopener">' + icon("code") + "Source code</a>" +
+        "</div>" +
         '<div class="m-foot"><span class="net' + ($("net") && $("net").classList.contains("off") ? " off" : "") + '"><i></i>' +
-        esc(($("net-text") || {}).textContent || "Arc") + "</span><span>Reins · beta</span></div>";
+        esc(($("net-text") || {}).textContent || "Arc") + '</span><span class="m-legal"><a href="/terms">Terms</a> · <a href="/privacy">Privacy</a></span></div>';
       // Each block rises in, one after another.
       Array.prototype.forEach.call(menu.children, function (el, i) { el.style.setProperty("--i", i); });
     };
@@ -326,6 +321,14 @@ window.ReinsUI = (function () {
   function setNet(ok, text) {
     $("net").classList.toggle("off", !ok);
     if (text) $("net-text").textContent = text;
+  }
+  // A page about another network (Arena runs on mainnet while the agents app is on testnet)
+  // names its own: the app's config then leaves the label and the explorer link alone.
+  var netFixed = false;
+  function fixNet(text, explorer) {
+    netFixed = true;
+    if ($("net")) setNet(true, text);
+    if (explorer && $("nav-explorer")) $("nav-explorer").href = explorer;
   }
   // The sign-in module (auth.js) and its styles load once, on every page.
   var authLoad = null;
@@ -664,7 +667,7 @@ window.ReinsUI = (function () {
   return {
     FLAT: FLAT, esc: esc, short: short, money: money, compact: compact, bigMoneyHtml: bigMoneyHtml, dirOf: dirOf,
     pct: pct, pctHtml: pctHtml, stateOf: stateOf, riskOf: riskOf, icon: icon, identicon: identicon, avatar: avatar, coins: coins, coinCount: coinCount, ring: ring, RANGES: RANGES,
-    topbar: topbar, phoneMenu: phoneMenu, TABS: TABS, MARK: MARK, setNet: setNet, connect: connect, onAccount: onAccount,
+    topbar: topbar, phoneMenu: phoneMenu, TABS: TABS, MARK: MARK, setNet: setNet, fixNet: fixNet, connect: connect, onAccount: onAccount,
     change: change, periodReturns: periodReturns, combine: combine, areaSvg: areaSvg, Chart: Chart, getJson: getJson,
     curvePoints: curvePoints, pseudoAddress: pseudoAddress, strategyRisk: strategyRisk, spark: spark, indexOf: indexOf, windowed: windowed,
   };

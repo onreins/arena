@@ -79,6 +79,19 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 26%, transparent);
   }
   .mnav .tile .t-ic .ic { width: 18px; height: 18px; }
+  /* The menu, after Aave's phone menu (ui.js phoneMenu): a plain list of words, no icons; the
+     current page marked by a violet bar at its left; dividers between groups; outlined buttons. */
+  .mnav .m-list { display: grid; padding: 2px 0; }
+  .mnav .m-sec { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .mnav .m-it { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 0 6px 0 16px; border-radius: 10px; color: var(--ink); font: 500 17px var(--sans); text-decoration: none; }
+  .mnav .m-it:active { background: var(--chip); }
+  .mnav .m-it[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: #8b6cff; }
+  .mnav .m-val { color: var(--ink-3); font-size: 15px; }
+  .mnav .m-go { width: 18px; height: 18px; color: var(--ink-3); }
+  .mnav .m-btns { display: grid; gap: 10px; margin-top: 20px; }
+  .mnav .m-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 12px; color: var(--ink); font: 500 15px var(--sans); text-decoration: none; box-shadow: inset 0 0 0 1px var(--line-2); }
+  .mnav .m-btn:active { background: var(--chip); }
+  .mnav .m-btn .ic { width: 17px; height: 17px; color: var(--ink-2); }
   .mnav .tile b { color: #fff; font: 600 15px var(--sans); }
   .mnav .tile small { color: var(--ink-3); font-size: 12px; }
   .mnav .tile:active { transform: scale(.97); }
@@ -102,7 +115,7 @@
   .mnav .card { padding: 4px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line-2); }
   .mnav a.row { position: relative; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 10px; border-radius: 12px; }
   .mnav a.row + a.row::before { content: ""; position: absolute; top: 0; left: 54px; right: 10px; border-top: 1px solid var(--line); }
-  .mnav a.row .r-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 10px; background: var(--chip-2); color: var(--ink-2); }
+  .mnav a.row .r-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 10px; background: rgba(139, 108, 255, .14); color: #d9d3ff; box-shadow: inset 0 0 0 1px rgba(139, 108, 255, .22); }
   .mnav a.row .r-ic .ic { width: 17px; height: 17px; }
   .mnav a.row .r-txt { display: grid; gap: 2px; flex: 1; min-width: 0; }
   .mnav a.row .r-txt b { color: var(--ink); font: 500 15px var(--sans); }
@@ -110,11 +123,12 @@
   .mnav a.row .r-go { width: 15px; height: 15px; color: var(--ink-4); }
   .mnav a.row:active { background: var(--chip); }
   .mnav a.row[aria-current="page"] { background: var(--chip); }
-  .mnav a.row[aria-current="page"] .r-ic { background: color-mix(in srgb, var(--blue) 18%, transparent); color: var(--blue); }
+  .mnav a.row[aria-current="page"] .r-ic { background: #8b6cff; color: #fff; box-shadow: none; }
 
   /* Foot: the network and the name */
   .mnav .m-foot { display: flex; justify-content: space-between; align-items: center; margin: 22px 4px 0; color: var(--ink-4); font-size: 12px; }
   .mnav .m-foot .net { font-size: 12px; }
+  .mnav .m-legal a { color: var(--ink-3); padding: 8px 2px; }
 
   body.mnav-on { overflow: hidden; }
   /* Charts keeps its own, slimmer top bar. */

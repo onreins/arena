@@ -119,9 +119,11 @@ test("signing: only Arena's own messages, for this deployment, rebuilt field by 
     LinkAgent: { agent: ADDR, wallet: "0x" + "2".repeat(40), nonce: "0", deadline: "1999999999" },
     UnlinkAgent: { agent: ADDR, nonce: "1", deadline: "1999999999" },
     SetProfile: { account: ADDR, bookId: "0", name: "Midnight", bio: "", link: "", nonce: "0", deadline: "1999999999" },
+    JoinWaitlist: { account: ADDR, deadline: "1999999999" }, // the marketplace waitlist's sign-in (app/arena-waitlist-routes.js)
   };
   const typed = (primaryType = "LinkAgent", over = {}) => ({ domain, primaryType, types: { anything: [] }, message: MESSAGES[primaryType], ...over });
   try {
+    assert.ok(SIGNABLE.includes("JoinWaitlist"), "Google wallets can join the waitlist");
     for (const bad of [
       typed("LinkAgent", { domain: { ...domain, name: "Uniswap" } }),
       typed("LinkAgent", { domain: { ...domain, chainId: 1 } }),
